@@ -1,227 +1,274 @@
-import React, { useEffect, useState } from "react";
+/**
+ * CalendarScreen.js
+ * 
+ * This screen displays a calendar view of all appointments with the following features:
+ * - Month and Week view modes
+ * - Navigation between months/weeks
+ * - Tap on a day to add a new appointment
+ * - Tap on an appointment to view details
+ * - Long-press on an appointment to delete it
+ * - Highlights dates when navigating from other screens
+ */
+
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   Button,
   StyleSheet,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  TouchableWithoutFeedback,
-  Keyboard,
-  Modal,
+  Dimensions,
+  Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-big-calendar";
 import { useAppointments } from "../context/AppointmentsContext";
+import AddAppointmentModal from "../components/AddAppointmentModal";
+
+// Get screen height for dynamic calendar sizing in week view
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function CalendarScreen({ navigation, route }) {
-  const { appointments, addAppointment } = useAppointments();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [clientName, setClientName] = useState("");
-  const [startTime, setStartTime] = useState("10:00");
-  const [endTime, setEndTime] = useState("11:00");
-  const [showModal, setShowModal] = useState(false);
+  // Get appointments and delete function from context
+  const { appointments, deleteAppointment } = useAppointments();
 
-  // If navigated with highlightDate, jump the calendar to that day
+  // State management:
+  // - currentDate: The currently displayed month/week in the calendar
+  // - mode: "month" or "week" view mode
+  // - modalVisible: Controls visibility of the add appointment modal
+  // - selectedDate: The date selected when tapping a day (used for new appointments)
+  // - isDeleting: Loading state when deleting an appointment
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [mode, setMode] = useState("month");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  /**
+   * Effect: Jump to highlighted date when navigating from other screens
+   * This allows the calendar to automatically show a specific date when
+   * navigating from the Home screen's "View in Calendar" button
+   */
   useEffect(() => {
     const iso = route?.params?.highlightDate;
     if (iso) {
       const target = new Date(iso);
-      if (!Number.isNaN(target)) {
-        setCurrentDate(target);
-      }
+      if (!Number.isNaN(target)) setCurrentDate(target);
     }
   }, [route?.params?.highlightDate]);
 
-  const parseTime = (timeStr) => {
-    const [h, m] = timeStr.split(":").map((v) => parseInt(v, 10));
-    if (
-      Number.isNaN(h) ||
-      Number.isNaN(m) ||
-      h < 0 ||
-      h > 23 ||
-      m < 0 ||
-      m > 59
-    ) {
-      return null;
+  /**
+   * handleDayPress: Called when user taps on an empty day cell in the calendar
+   * Opens the add appointment modal with the selected date pre-filled
+   */
+  const handleDayPress = (day) => {
+    if (day instanceof Date) {
+      setSelectedDate(day);
+      setModalVisible(true);
     }
-    const start = new Date(currentDate);
-    start.setHours(h, m, 0, 0);
-    return start;
   };
 
-  const handleAdd = () => {
-    const start = parseTime(startTime);
-    const end = parseTime(endTime);
-
-    if (!clientName.trim()) {
-      Alert.alert("Missing name", "Please enter a client name.");
-      return;
-    }
-    if (!start || !end || end <= start) {
-      Alert.alert("Invalid time", "Please check start/end times (HH:MM).");
-      return;
-    }
-
-    addAppointment({
-      client: clientName.trim(),
-      start,
-      end,
-    });
-    setClientName("");
-    Alert.alert("Added", "Appointment added and visible on Home.");
-    setShowModal(false);
+  /**
+   * handleLongPressEvent: Called when user long-presses on an appointment event
+   * Shows a confirmation dialog and deletes the appointment if confirmed
+   */
+  const handleLongPressEvent = (event) => {
+    Alert.alert(
+      "Delete Appointment",
+      `Delete appointment with ${event.client} on ${event.start.toLocaleDateString()}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await deleteAppointment(event.id);
+              Alert.alert("Success", "Appointment deleted successfully.");
+            } catch (error) {
+              Alert.alert("Error", error.message || "Failed to delete appointment.");
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
-  const goNextMonth = () => {
+  /**
+   * goNext: Navigate to the next month or week
+   * - Month mode: Moves forward one month
+   * - Week mode: Moves forward 7 days
+   */
+  const goNext = () => {
     const next = new Date(currentDate);
-    next.setMonth(currentDate.getMonth() + 1);
+    if (mode === "month") {
+      next.setMonth(next.getMonth() + 1);
+      next.setDate(1);
+    } else {
+      next.setDate(next.getDate() + 7);
+    }
     setCurrentDate(next);
   };
 
-  const goPrevMonth = () => {
+  /**
+   * goPrev: Navigate to the previous month or week
+   * - Month mode: Moves backward one month
+   * - Week mode: Moves backward 7 days
+   */
+  const goPrev = () => {
     const prev = new Date(currentDate);
-    prev.setMonth(currentDate.getMonth() - 1);
+    if (mode === "month") {
+      prev.setMonth(prev.getMonth() - 1);
+      prev.setDate(1);
+    } else {
+      prev.setDate(prev.getDate() - 7);
+    }
     setCurrentDate(prev);
   };
 
   return (
-    <>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 0}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView
-            style={styles.container}
-            contentContainerStyle={{ paddingBottom: 24 }}
-            keyboardShouldPersistTaps="handled"
-          >
-            <Text style={styles.monthText}>
-              {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-            </Text>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Header Section: Shows current month/year and navigation controls */}
+        <View style={styles.header}>
+          {/* Display current month and year */}
+          <Text style={styles.monthText}>
+            {currentDate.toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </Text>
 
-            <View style={styles.navRow}>
-              <Button title="Prev Month" onPress={goPrevMonth} />
-              <Button title="Next Month" onPress={goNextMonth} />
-            </View>
-
-            <Calendar
-              events={appointments.map((a) => ({ ...a, title: a.client }))}
-              height={600}
-              date={currentDate}
-              mode="month" // <-- month view only
-              onPressEvent={(event) => navigation.navigate("AppointmentDetail", { event })}
-            />
-
-            <View style={styles.inlineActions}>
-              <Button title="Add Appointment" onPress={() => setShowModal(true)} />
-            </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowModal(false)}
-      >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.modalCard}
-            >
-              <ScrollView keyboardShouldPersistTaps="handled">
-                <Text style={styles.formTitle}>Add Appointment</Text>
-                <TextInput
-                  placeholder="Client name"
-                  value={clientName}
-                  onChangeText={setClientName}
-                  style={styles.input}
-                />
-                <View style={styles.row}>
-                  <View style={[styles.half, { marginRight: 6 }]}>
-                    <Text style={styles.label}>Start (HH:MM)</Text>
-                    <TextInput
-                      value={startTime}
-                      onChangeText={setStartTime}
-                      style={styles.input}
-                      placeholder="10:00"
-                    />
-                  </View>
-                  <View style={[styles.half, { marginLeft: 6 }]}>
-                    <Text style={styles.label}>End (HH:MM)</Text>
-                    <TextInput
-                      value={endTime}
-                      onChangeText={setEndTime}
-                      style={styles.input}
-                      placeholder="11:00"
-                    />
-                  </View>
-                </View>
-                <View style={styles.modalButtons}>
-                  <Button title="Cancel" onPress={() => setShowModal(false)} />
-                  <Button title="Add to Calendar" onPress={handleAdd} />
-                </View>
-              </ScrollView>
-            </KeyboardAvoidingView>
+          {/* Mode Toggle: Switch between Month and Week view */}
+          <View style={styles.modeRow}>
+            <Button title="Month" onPress={() => setMode("month")} />
+            <Button title="Week" onPress={() => setMode("week")} />
           </View>
-        </TouchableWithoutFeedback>
-      </Modal>
-    </>
+
+          {/* Navigation Buttons: Move forward/backward through time */}
+          <View style={styles.navRow}>
+            <Button title="← Prev" onPress={goPrev} />
+            <Button title="Next →" onPress={goNext} />
+          </View>
+        </View>
+
+        {/* Calendar Container: The main calendar component */}
+        <View style={styles.calendarContainer}>
+          <Calendar
+            // Map appointments to calendar events format (title = client name)
+            events={appointments.map((a) => ({
+              ...a,
+              title: a.client,
+            }))}
+            date={currentDate} // Current date being displayed
+            mode={mode} // "month" or "week" view
+            height={mode === "month" ? 450 : SCREEN_HEIGHT * 0.85} // Dynamic height based on mode
+            hourRowHeight={70} // Height of each hour row in week view
+            hideNowIndicator // Hide the "current time" indicator line
+            showTime={false} // Don't show time in event cells
+            // Styling for appointment event cells
+            eventCellStyle={{
+              backgroundColor: "#3b82f6",
+              borderRadius: 12,
+              paddingVertical: 8,
+              paddingHorizontal: 6,
+              minHeight: 44,
+            }}
+            // Styling for text inside event cells
+            eventCellTextStyle={{
+              fontSize: 14,
+              fontWeight: "500",
+              color: "#ffffff",
+            }}
+            // Styling for day headers (Monday, Tuesday, etc.)
+            dayHeaderStyle={{
+              paddingVertical: 10,
+              borderBottomWidth: 0,
+            }}
+            // Styling for calendar body container
+            bodyContainerStyle={{
+              borderTopWidth: 0,
+            }}
+            // Handler: Called when tapping an empty day cell
+            onPressCell={handleDayPress}
+            // Handler: Called when tapping an appointment event (navigates to details)
+            onPressEvent={(event) => {
+              // Convert Date objects to ISO strings for navigation (React Navigation requires serializable params)
+              const serializedEvent = {
+                ...event,
+                start: event.start.toISOString(),
+                end: event.end.toISOString(),
+                appointment_at: event.appointment_at ? event.appointment_at.toISOString() : null,
+                reminder_at: event.reminder_at ? event.reminder_at.toISOString() : null,
+              };
+              navigation.navigate("AppointmentDetail", { event: serializedEvent });
+            }}
+            // Handler: Called when long-pressing an appointment event (deletes appointment)
+            onLongPressEvent={handleLongPressEvent}
+          />
+        </View>
+
+        {/* Add Appointment Modal: Opens when user taps a day */}
+        <AddAppointmentModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          selectedDate={selectedDate}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  content: {
+    padding: 24,
+    paddingBottom: 40,
+  },
+  header: {
+    marginBottom: 28,
+  },
   monthText: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontSize: 32,
+    fontWeight: "500",
     textAlign: "center",
+    color: "#1e293b",
+    marginBottom: 12,
+    letterSpacing: -0.5,
+  },
+  modeRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 12,
+    marginBottom: 12,
   },
   navRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 10,
   },
-  inlineActions: { marginTop: 12 },
-  formTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    marginBottom: 10,
-    backgroundColor: "#fff",
-  },
-  row: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  half: { flex: 1 },
-  label: { fontSize: 12, color: "#4b5563", marginBottom: 4 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "flex-end",
-  },
-  modalCard: {
-    backgroundColor: "#fff",
+  calendarContainer: {
+    backgroundColor: "#ffffff",
+    borderRadius: 20,
     padding: 16,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: "75%",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
+    marginTop: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    overflow: "hidden",
   },
 });
