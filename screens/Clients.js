@@ -17,8 +17,15 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput,
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClients } from "../context/ClientsContext";
 import { useAppointments } from "../context/AppointmentsContext";
+import { useLanguage } from '../context/LanguageContext';
+import { getT } from '../i18n/translations';
 
 export default function ClientsScreen() {
+  //get language from context
+  const { language } = useLanguage();
+  const t = (key) => getT(key, language);
+  
+  
   // Get client management functions from context
   const { clients, addClient, updateClient, deleteClient, loading } = useClients();
   
@@ -158,21 +165,21 @@ export default function ClientsScreen() {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Header Section: Shows screen title and client count */}
         <View style={styles.header}>
-          <Text style={styles.title}>Clients</Text>
+          <Text style={styles.title}>{t('clients')}</Text>
           <Text style={styles.subtitle}>
-            {clients.length} {clients.length === 1 ? "client" : "clients"}
+            {clients.length} {clients.length === 1 ? t('singleClient') : t('clients')}
           </Text>
         </View>
 
         {/* Add New Client Button: Opens modal to create a new client */}
         <TouchableOpacity style={styles.addButton} onPress={handleAddClient}>
-          <Text style={styles.addButtonText}>+ Add New Client</Text>
+          <Text style={styles.addButtonText}>{t('addClient')}</Text>
         </TouchableOpacity>
 
         {/* Loading State: Shows while fetching clients from database */}
         {loading ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>Loading clients...</Text>
+            <Text style={styles.emptyText}>{t('loadingClient')}</Text>
           </View>
         ) : clients.length > 0 ? (
           /* Clients List: Displays all clients with their information */
@@ -213,13 +220,13 @@ export default function ClientsScreen() {
                       style={styles.editButton}
                       onPress={() => handleEditClient(client)}
                     >
-                      <Text style={styles.editButtonText}>Edit</Text>
+                      <Text style={styles.editButtonText}>{t('edit')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDelete(client)}
                     >
-                      <Text style={styles.deleteButtonText}>Delete</Text>
+                      <Text style={styles.deleteButtonText}>{t('delete')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -229,10 +236,8 @@ export default function ClientsScreen() {
         ) : (
           /* Empty State: Shown when no clients exist */
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No clients yet</Text>
-            <Text style={styles.emptySubtext}>
-              Tap "Add New Client" to create your first client
-            </Text>
+            <Text style={styles.emptyText}>{t('noClients')}</Text>
+            
           </View>
         )}
       </ScrollView>
@@ -243,22 +248,22 @@ export default function ClientsScreen() {
           <View style={styles.modal}>
             {/* Modal Title: Changes based on whether adding or editing */}
             <Text style={styles.modalTitle}>
-              {editingClient ? "Edit Client" : "Add New Client"}
+              {editingClient ? "Edit Client" : t('addClient')}
             </Text>
 
             {/* Client Name Input: Required field */}
-            <Text style={styles.label}>Client Name *</Text>
+            <Text style={styles.label}>{t('nameClient')}</Text>
             <TextInput
-              placeholder="Enter client name"
+              placeholder={t('addclientName')}
               value={clientName}
               onChangeText={setClientName}
               style={styles.input}
             />
 
             {/* Phone Number Input: Optional field */}
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>{t('phoneNumber')}</Text>
             <TextInput
-              placeholder="Enter phone number (optional)"
+              placeholder={t('phoneNumber')}
               value={clientPhone}
               onChangeText={setClientPhone}
               style={styles.input}
@@ -268,12 +273,12 @@ export default function ClientsScreen() {
             {/* Modal Action Buttons: Save and Cancel */}
             <View style={styles.modalActions}>
               <Button
-                title="Save"
+                title={t('save')}
                 onPress={handleSave}
               />
               <View style={{ height: 10 }} />
               <Button
-                title="Cancel"
+                title={t('cancel')}
                 color="red"
                 onPress={() => {
                   // Reset form and close modal

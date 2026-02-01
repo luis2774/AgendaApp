@@ -3,5 +3,44 @@ export default {
     addAppointment: "Agregar cita",
     sendReminder: "Enviar recordatorio(WIP)",
     settings: "Configuración",
+    changeLanguage: "Cambiar Idioma",
+    currentLanguage: "Idioma Actual",
+    total: "Total",
+    today: "Hoy",
+    confirmed: "Confirmado",
+    pending: "Pendiente",
+    overview: "Detalles",
+    aUpcoming: "Proximas Casas",
+    numUpcoming: "siguientes",
+    apAvailable: "Lugar disponible",
+    numAvailable: "disponibles",
+    noAppointments: "No casas",
+    open: "Abierto",
+    timeSlot: "2 Horas",
+    book: "Apartar",
+    fullSchedule: "No hay lugar",
+    at: "a las",
+    nextAppointment: "Próxima Cita",
+    viewDetails: "Ver Detalles",
+    viewInCalendar: "Ver en Calendario",
+//Calendar screen
+
+
+//Clients screen
+    singleClient:"Un cliente",
+    clients:"Clientes",
+    addClient:"Anadir Cliente",
+    loadingClient:"Clientes cargando",
+    editClient:"Cambia detalles",
+    edit:"Editar",
+    delete:"Eliminar",
+    noClients:"No hay Clientes",
+    nameClient:"Nombre del Cliente",
+    addclientName:"Nombre del Cliente",
+    phoneNumber:"Numero de telefono",
+    save:"Salvar",
+    cancel:"Cancelar",
+
+
   };
   
