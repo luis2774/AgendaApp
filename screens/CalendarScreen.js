@@ -46,8 +46,6 @@ export default function CalendarScreen({ navigation, route }) {
 
   /**
    * Effect: Jump to highlighted date when navigating from other screens
-   * This allows the calendar to automatically show a specific date when
-   * navigating from the Home screen's "View in Calendar" button
    */
   useEffect(() => {
     const iso = route?.params?.highlightDate;
@@ -59,7 +57,6 @@ export default function CalendarScreen({ navigation, route }) {
 
   /**
    * handleDayPress: Called when user taps on an empty day cell in the calendar
-   * Opens the add appointment modal with the selected date pre-filled
    */
   const handleDayPress = (day) => {
     if (day instanceof Date) {
@@ -70,7 +67,6 @@ export default function CalendarScreen({ navigation, route }) {
 
   /**
    * handleLongPressEvent: Called when user long-presses on an appointment event
-   * Shows a confirmation dialog and deletes the appointment if confirmed
    */
   const handleLongPressEvent = (event) => {
     Alert.alert(
@@ -102,8 +98,6 @@ export default function CalendarScreen({ navigation, route }) {
 
   /**
    * goNext: Navigate to the next month or week
-   * - Month mode: Moves forward one month
-   * - Week mode: Moves forward 7 days
    */
   const goNext = () => {
     const next = new Date(currentDate);
@@ -118,8 +112,6 @@ export default function CalendarScreen({ navigation, route }) {
 
   /**
    * goPrev: Navigate to the previous month or week
-   * - Month mode: Moves backward one month
-   * - Week mode: Moves backward 7 days
    */
   const goPrev = () => {
     const prev = new Date(currentDate);
@@ -135,9 +127,8 @@ export default function CalendarScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Header Section: Shows current month/year and navigation controls */}
+        {/* Header Section */}
         <View style={styles.header}>
-          {/* Display current month and year */}
           <Text style={styles.monthText}>
             {currentDate.toLocaleDateString("en-US", {
               month: "long",
@@ -145,76 +136,77 @@ export default function CalendarScreen({ navigation, route }) {
             })}
           </Text>
 
-          {/* Mode Toggle: Switch between Month and Week view */}
+          {/* Mode Toggle */}
           <View style={styles.modeRow}>
             <Button title="Month" onPress={() => setMode("month")} />
             <Button title="Week" onPress={() => setMode("week")} />
           </View>
 
-          {/* Navigation Buttons: Move forward/backward through time */}
+          {/* Navigation Buttons */}
           <View style={styles.navRow}>
             <Button title="← Prev" onPress={goPrev} />
             <Button title="Next →" onPress={goNext} />
           </View>
         </View>
 
-        {/* Calendar Container: The main calendar component */}
+        {/* Calendar Container */}
         <View style={styles.calendarContainer}>
           <Calendar
-            // Map appointments to calendar events format (title = client name)
             events={appointments.map((a) => ({
               ...a,
               title: a.client,
+              end: a.end || new Date(a.start.getTime() + 60 * 60 * 1000),
             }))}
-            date={currentDate} // Current date being displayed
-            mode={mode} // "month" or "week" view
-            height={mode === "month" ? 450 : SCREEN_HEIGHT * 0.85} // Dynamic height based on mode
-            hourRowHeight={70} // Height of each hour row in week view
-            hideNowIndicator // Hide the "current time" indicator line
-            showTime={false} // Don't show time in event cells
-            // Styling for appointment event cells
+            date={currentDate}
+            mode={mode}
+
+            // ✅ BIGGER MONTH VIEW
+            height={mode === "month" ? SCREEN_HEIGHT * 0.78 : SCREEN_HEIGHT * 0.85}
+
+            hourRowHeight={70}
+            hideNowIndicator
+            showTime={false}
+
+            // Spacing to avoid cramped events
             eventCellStyle={{
               backgroundColor: "#3b82f6",
               borderRadius: 12,
-              paddingVertical: 8,
+              paddingVertical: 4,
               paddingHorizontal: 6,
-              minHeight: 44,
+              marginVertical: 2,
+              minHeight: 40,
             }}
-            // Styling for text inside event cells
             eventCellTextStyle={{
-              fontSize: 14,
-              fontWeight: "500",
-              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: "600",
+              color: "#fff",
             }}
-            // Styling for day headers (Monday, Tuesday, etc.)
+
             dayHeaderStyle={{
               paddingVertical: 10,
               borderBottomWidth: 0,
             }}
-            // Styling for calendar body container
             bodyContainerStyle={{
               borderTopWidth: 0,
             }}
-            // Handler: Called when tapping an empty day cell
+
             onPressCell={handleDayPress}
-            // Handler: Called when tapping an appointment event (navigates to details)
             onPressEvent={(event) => {
-              // Convert Date objects to ISO strings for navigation (React Navigation requires serializable params)
+              const endTime = event.end || new Date(event.start.getTime() + 60 * 60 * 1000);
               const serializedEvent = {
                 ...event,
                 start: event.start.toISOString(),
-                end: event.end.toISOString(),
+                end: endTime.toISOString(),
                 appointment_at: event.appointment_at ? event.appointment_at.toISOString() : null,
                 reminder_at: event.reminder_at ? event.reminder_at.toISOString() : null,
               };
               navigation.navigate("AppointmentDetail", { event: serializedEvent });
             }}
-            // Handler: Called when long-pressing an appointment event (deletes appointment)
             onLongPressEvent={handleLongPressEvent}
           />
         </View>
 
-        {/* Add Appointment Modal: Opens when user taps a day */}
+        {/* Add Appointment Modal */}
         <AddAppointmentModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}

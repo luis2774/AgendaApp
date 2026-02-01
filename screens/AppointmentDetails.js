@@ -23,7 +23,7 @@ export default function AppointmentDetailScreen({ route, navigation }) {
   const event = {
     ...serializedEvent,
     start: new Date(serializedEvent.start),
-    end: new Date(serializedEvent.end),
+    end: serializedEvent.end ? new Date(serializedEvent.end) : null,
     appointment_at: serializedEvent.appointment_at ? new Date(serializedEvent.appointment_at) : null,
     reminder_at: serializedEvent.reminder_at ? new Date(serializedEvent.reminder_at) : null,
   };
@@ -120,13 +120,9 @@ export default function AppointmentDetailScreen({ route, navigation }) {
             })}
           </Text>
           
-          {/* Appointment Time: Start and end time in 12-hour format */}
+          {/* Appointment Time: Start time in 12-hour format */}
           <Text style={styles.info}>
             {event.start.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })} - {event.end.toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
               hour12: true,
@@ -157,7 +153,7 @@ export default function AppointmentDetailScreen({ route, navigation }) {
                 ? "Reminder Sent ✓" 
                 : isSendingReminder 
                 ? "Sending..." 
-                : "Send SMS Reminder"}
+                : "Send SMS Reminder (WIP)"}
             </Text>
           </TouchableOpacity>
           

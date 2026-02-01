@@ -1,3 +1,6 @@
+//this is the pop up that appears when user clicks on a calendar day to add a new appointment
+
+
 import React, { useState, useEffect } from "react";
 import { Modal, View, Text, Button, Alert, StyleSheet, Platform, TouchableOpacity, FlatList, ScrollView } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -11,7 +14,7 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [showClientPicker, setShowClientPicker] = useState(false);
   
-  // Initialize with selectedDate or today, default to 9 AM - 10 AM
+  // Initialize with selectedDate or today, default to 9 AM
   const getInitialDate = () => {
     const date = selectedDate ? new Date(selectedDate) : new Date();
     // If selectedDate has a specific time, preserve it; otherwise default to 9 AM
@@ -22,35 +25,20 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
     return date;
   };
 
-  const getInitialEndDate = () => {
-    const date = selectedDate ? new Date(selectedDate) : new Date();
-    // If selectedDate has a specific time, calculate end time (1 hour later)
-    if (selectedDate && date.getHours() !== 0 && date.getMinutes() !== 0) {
-      return new Date(date.getTime() + 60 * 60 * 1000); // 1 hour later
-    }
-    date.setHours(10, 0, 0, 0);
-    return date;
-  };
-
   const [startTime, setStartTime] = useState(getInitialDate());
-  const [endTime, setEndTime] = useState(getInitialEndDate());
 
-  // Update times when selectedDate changes
+  // Update startTime when selectedDate changes
   useEffect(() => {
     if (selectedDate) {
       const date = new Date(selectedDate);
       // If the date has a specific time (not midnight), use it
       if (date.getHours() !== 0 || date.getMinutes() !== 0) {
         setStartTime(date);
-        setEndTime(new Date(date.getTime() + 60 * 60 * 1000)); // 1 hour later
       } else {
-        // Otherwise default to 9 AM - 10 AM
+        // Otherwise default to 9 AM
         const start = new Date(date);
         start.setHours(9, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(10, 0, 0, 0);
         setStartTime(start);
-        setEndTime(end);
       }
     }
   }, [selectedDate]);
@@ -63,33 +51,21 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
       return;
     }
 
-    // Combine selectedDate with the time picker values
-    const startDate = new Date(selectedDate || new Date());
-    startDate.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
-
-    const endDate = new Date(selectedDate || new Date());
-    endDate.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
-
-    if (endDate <= startDate) {
-      Alert.alert("Invalid time", "End time must be after start time.");
-      return;
-    }
+    // Combine selectedDate with the time picker value
+    const appointmentDate = new Date(selectedDate || new Date());
+    appointmentDate.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
 
     try {
       await addAppointment({
         client_id: selectedClientId,
         client: selectedClient?.name || "Unknown Client",
-        start: startDate,
-        end: endDate,
+        start: appointmentDate,
       });
 
       // Reset fields and close modal
       setSelectedClientId(null);
       const resetDate = getInitialDate();
       setStartTime(resetDate);
-      const resetEnd = new Date(resetDate);
-      resetEnd.setHours(10, 0, 0, 0);
-      setEndTime(resetEnd);
       onClose();
     } catch (error) {
       Alert.alert("Error", error.message || "Failed to save appointment.");
@@ -159,7 +135,7 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
             )}
 
           <View style={styles.timePickerContainer}>
-            <Text style={styles.label}>Start Time</Text>
+            <Text style={styles.label}>Time</Text>
             <View style={styles.pickerWrapper}>
               <DateTimePicker
                 value={startTime}
@@ -169,24 +145,6 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
                 onChange={(event, selectedTime) => {
                   if (selectedTime) {
                     setStartTime(selectedTime);
-                  }
-                }}
-                style={styles.picker}
-              />
-            </View>
-          </View>
-
-          <View style={styles.timePickerContainer}>
-            <Text style={styles.label}>End Time</Text>
-            <View style={styles.pickerWrapper}>
-              <DateTimePicker
-                value={endTime}
-                mode="time"
-                is24Hour={false}
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selectedTime) => {
-                  if (selectedTime) {
-                    setEndTime(selectedTime);
                   }
                 }}
                 style={styles.picker}
