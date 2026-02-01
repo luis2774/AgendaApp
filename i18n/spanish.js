@@ -24,7 +24,10 @@ export default {
     viewDetails: "Ver Detalles",
     viewInCalendar: "Ver en Calendario",
 //Calendar screen
-
+    prev:"← Previo",
+    next:"Siguiente →",
+    month:"Mes",
+    week:"Semana",
 
 //Clients screen
     singleClient:"Un cliente",

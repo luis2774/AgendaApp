@@ -11,6 +11,7 @@ import { AppointmentsProvider } from './context/AppointmentsContext';
 import { ClientsProvider } from './context/ClientsContext';
 import { LanguageProvider } from './context/LanguageContext';
 
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 

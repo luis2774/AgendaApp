@@ -23,6 +23,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { formatDate, formatTime } from "./helpers/timeFormat";  
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
@@ -37,17 +38,7 @@ export default function HomeScreen({ navigation }) {
   // Get appointments from context
   const { appointments } = useAppointments();
 
-  // Helper function to format dates based on language
-  const formatDate = (date, options = {}) => {
-    const locale = language === 'spanish' ? 'es-ES' : 'en-US';
-    return date.toLocaleDateString(locale, options);
-  };
 
-  // Helper function to format time based on language
-  const formatTime = (date, options = {}) => {
-    const locale = language === 'spanish' ? 'es-ES' : 'en-US';
-    return date.toLocaleTimeString(locale, options);
-  };
   
   // State for controlling the add appointment modal
   const [modalVisible, setModalVisible] = useState(false);
@@ -241,7 +232,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.screenHeader}>
           <Text style={styles.screenTitle}>{t('overview')}</Text>
           <Text style={styles.screenSub}>
-            {formatDate(new Date(), {
+            {formatDate(new Date(), language, {
               weekday: "long",
               month: "short",
               day: "numeric",
@@ -279,11 +270,11 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.nextAppointmentClient}>{stats.next.client}</Text>
             <View style={styles.nextAppointmentDetails}>
               <Text style={styles.nextAppointmentTime}>
-                {formatDate(stats.next.start, {
+                {formatDate(stats.next.start, language, {
                   month: "short",
                   day: "numeric",
                 })}{" "}
-                {t('at')} {formatTime(stats.next.start, {
+                {t('at')} {formatTime(stats.next.start, language, {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: true,
@@ -340,7 +331,7 @@ export default function HomeScreen({ navigation }) {
                     </View>
                     <View style={styles.cardDetails}>
                       <Text style={styles.details}>
-                        {formatDate(item.start, {
+                        {formatDate(item.start, language, {
                           weekday: "short",
                           month: "short",
                           day: "numeric",
@@ -348,7 +339,7 @@ export default function HomeScreen({ navigation }) {
                       </Text>
                       <Text style={styles.detailsSeparator}>•</Text>
                       <Text style={styles.details}>
-                        {formatTime(item.start, {
+                        {formatTime(item.start, language, {
                           hour: "2-digit",
                           minute: "2-digit",
                           hour12: true,
@@ -404,7 +395,7 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.cardHeader}>
                       <View style={styles.cardHeaderLeft}>
                         <Text style={styles.slotDate}>
-                          {isToday ? t('today') : formatDate(item.start, {
+                          {isToday ? t('today') : formatDate(item.start, language, {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
@@ -415,12 +406,12 @@ export default function HomeScreen({ navigation }) {
                       <Text style={styles.badgeLight}>{t('open')}</Text>
                     </View>
                     <Text style={styles.slotTime}>
-                      {formatTime(item.start, {
+                      {formatTime(item.start, language, {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: true,
                       })}{" "}
-                      - {formatTime(item.end, {
+                      - {formatTime(item.end, language, {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: true,

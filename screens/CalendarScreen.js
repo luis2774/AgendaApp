@@ -20,15 +20,27 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
+
+
+import { formatDate, formatTime } from "./helpers/timeFormat";  
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar } from "react-native-big-calendar";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
+import { useLanguage } from '../context/LanguageContext';
+import { getT } from '../i18n/translations';
 
 // Get screen height for dynamic calendar sizing in week view
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function CalendarScreen({ navigation, route }) {
+  const { language } = useLanguage();
+  // Note: react-native-big-calendar may have limited locale support
+  // Try different locale formats - the library might not fully support locale changes
+  // If this doesn't work, the library may need to be updated or replaced
+  const calendarLocale = language === 'spanish' ? 'es' : 'en';
+  
+  const t = (key) => getT(key, language);
   // Get appointments and delete function from context
   const { appointments, deleteAppointment } = useAppointments();
 
@@ -130,28 +142,31 @@ export default function CalendarScreen({ navigation, route }) {
         {/* Header Section */}
         <View style={styles.header}>
           <Text style={styles.monthText}>
-            {currentDate.toLocaleDateString("en-US", {
+            {formatDate(currentDate, language,{
               month: "long",
               year: "numeric",
-            })}
+              })}
           </Text>
 
           {/* Mode Toggle */}
           <View style={styles.modeRow}>
-            <Button title="Month" onPress={() => setMode("month")} />
-            <Button title="Week" onPress={() => setMode("week")} />
+            <Button title={t('month')} onPress={() => setMode("month")} />
+            <Button title={t('week')} onPress={() => setMode("week")} />
           </View>
 
           {/* Navigation Buttons */}
           <View style={styles.navRow}>
-            <Button title="← Prev" onPress={goPrev} />
-            <Button title="Next →" onPress={goNext} />
+            <Button title={t('prev')} onPress={goPrev} />
+            <Button title={t('next')} onPress={goNext} />
           </View>
         </View>
 
         {/* Calendar Container */}
         <View style={styles.calendarContainer}>
           <Calendar
+            key={`calendar-${language}-${Date.now()}`}
+            locale={calendarLocale}
+            weekStartsOn={language === 'spanish' ? 1 : 0}
             events={appointments.map((a) => ({
               ...a,
               title: a.client,
