@@ -4,7 +4,7 @@ export default {
     addAppointment: "Add Appointment",
     sendReminder: "Send Reminder (WIP)",
     settings: "Settings",
-    total: "Total",
+    total: "Total free",
     today: "Today",
     confirmed: "Confirmed",
     pending: "Pending",
@@ -25,6 +25,8 @@ export default {
     viewDetails: "View Details",
     viewInCalendar: "View in Calendar",
 //Calendar screen
+prev:"← Prev",
+next:"Next →",
 
 
 //Clients screen
@@ -41,5 +43,6 @@ addclientName:"Enter clients name",
 phoneNumber:"Phone Number",
 save:"Save",
 cancel:"Cancel",
+
   };
   

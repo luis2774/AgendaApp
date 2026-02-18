@@ -35,9 +35,6 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export default function CalendarScreen({ navigation, route }) {
   const { language } = useLanguage();
-  // Note: react-native-big-calendar may have limited locale support
-  // Try different locale formats - the library might not fully support locale changes
-  // If this doesn't work, the library may need to be updated or replaced
   const calendarLocale = language === 'spanish' ? 'es' : 'en';
   
   const t = (key) => getT(key, language);
@@ -164,9 +161,7 @@ export default function CalendarScreen({ navigation, route }) {
         {/* Calendar Container */}
         <View style={styles.calendarContainer}>
           <Calendar
-            key={`calendar-${language}-${Date.now()}`}
-            locale={calendarLocale}
-            weekStartsOn={language === 'spanish' ? 1 : 0}
+          locale={calendarLocale}
             events={appointments.map((a) => ({
               ...a,
               title: a.client,

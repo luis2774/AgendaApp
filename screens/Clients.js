@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   addButton: {
-    backgroundColor: "#6366f1",
+    backgroundColor: "#3b82f6",
     borderRadius: 16,
     padding: 18,
     alignItems: "center",

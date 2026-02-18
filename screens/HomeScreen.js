@@ -43,6 +43,8 @@ export default function HomeScreen({ navigation }) {
   // State for controlling the add appointment modal
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  // State to collapse/expand the Available Time Slots section
+  const [slotsCollapsed, setSlotsCollapsed] = useState(false);
   
   // Business hours configuration
   const BUSINESS_START_HOUR = 9; // 9 AM
@@ -171,6 +173,7 @@ export default function HomeScreen({ navigation }) {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const totalAppointments = appointments.length;
+    const totalopenSpots = openSlots.length;
     const confirmedCount = appointments.filter(apt => apt.confirmed).length;
     const pendingCount = totalAppointments - confirmedCount;
     
@@ -187,7 +190,7 @@ export default function HomeScreen({ navigation }) {
     const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
 
     return {
-      total: totalAppointments,
+      total: totalopenSpots,
       confirmed: confirmedCount,
       pending: pendingCount,
       today: todayAppointments.length,
@@ -377,63 +380,73 @@ export default function HomeScreen({ navigation }) {
 
         {/* Available Time Slots Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('apAvailable')}</Text>
-            <Text style={styles.sectionSubtitle}>{openSlots.length} {t('numAvailable')}</Text>
-          </View>
-          {openSlots.length > 0 ? (
-            <FlatList
-              data={openSlots}
-              scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              keyExtractor={(item, index) => `slot-${item.start.getTime()}-${index}`}
-              renderItem={({ item }) => {
-                const isToday = new Date(item.start.getFullYear(), item.start.getMonth(), item.start.getDate()).getTime() === 
-                                new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
-                return (
-                  <View style={styles.slotCard}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardHeaderLeft}>
-                        <Text style={styles.slotDate}>
-                          {isToday ? t('today') : formatDate(item.start, language, {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Text>
-                        <Text style={styles.slotDuration}>{t("timeSlot")}</Text>
-                      </View>
-                      <Text style={styles.badgeLight}>{t('open')}</Text>
-                    </View>
-                    <Text style={styles.slotTime}>
-                      {formatTime(item.start, language, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}{" "}
-                      - {formatTime(item.end, language, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.bookButton}
-                      onPress={() => {
-                        setSelectedDate(item.start);
-                        setModalVisible(true);
-                      }}
-                    >
-                      <Text style={styles.bookButtonText}> {t('book')}</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>{t('fullSchedule')}</Text>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            activeOpacity={0.8}
+            onPress={() => setSlotsCollapsed((s) => !s)}
+          >
+            <View>
+              <Text style={styles.sectionTitle}>{t('apAvailable')}</Text>
+              <Text style={styles.sectionSubtitle}>{openSlots.length} {t('numAvailable')}</Text>
             </View>
+            <Text style={styles.collapseArrow}>{slotsCollapsed ? '▸' : '▾'}</Text>
+          </TouchableOpacity>
+
+          {!slotsCollapsed && (
+            openSlots.length > 0 ? (
+              <FlatList
+                data={openSlots}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                keyExtractor={(item, index) => `slot-${item.start.getTime()}-${index}`}
+                renderItem={({ item }) => {
+                  const isToday = new Date(item.start.getFullYear(), item.start.getMonth(), item.start.getDate()).getTime() === 
+                                  new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+                  return (
+                    <View style={styles.slotCard}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardHeaderLeft}>
+                          <Text style={styles.slotDate}>
+                            {isToday ? t('today') : formatDate(item.start, language, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </Text>
+                          <Text style={styles.slotDuration}>{t("timeSlot")}</Text>
+                        </View>
+                        <Text style={styles.badgeLight}>{t('open')}</Text>
+                      </View>
+                      <Text style={styles.slotTime}>
+                        {formatTime(item.start, language, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}{" "}
+                        - {formatTime(item.end, language, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.bookButton}
+                        onPress={() => {
+                          setSelectedDate(item.start);
+                          setModalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.bookButtonText}> {t('book')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>{t('fullSchedule')}</Text>
+              </View>
+            )
           )}
         </View>
 
@@ -796,5 +809,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 4,
     fontWeight: "400",
+  },
+  collapseArrow: {
+    fontSize: 20,
+    color: "#64748b",
+    marginLeft: 8,
   },
 });

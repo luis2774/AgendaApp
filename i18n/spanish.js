@@ -5,7 +5,7 @@ export default {
     settings: "Configuración",
     changeLanguage: "Cambiar Idioma",
     currentLanguage: "Idioma Actual",
-    total: "Total",
+    total: "Abiertos",
     today: "Hoy",
     confirmed: "Confirmado",
     pending: "Pendiente",
