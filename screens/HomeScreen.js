@@ -23,18 +23,28 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
+import { formatDate, formatTime } from "./helpers/timeFormat";  
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
-import { getT } from "../i18n/translations";
+import { useLanguage } from '../context/LanguageContext';
+import { getT } from '../i18n/translations';
 
 export default function HomeScreen({ navigation }) {
+  //get language from context
+  const { language } = useLanguage();
+  const t = (key) => getT(key, language);
+
   // Get appointments from context
   const { appointments } = useAppointments();
+
+
   
   // State for controlling the add appointment modal
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
+  // State to collapse/expand the Available Time Slots section
+  const [slotsCollapsed, setSlotsCollapsed] = useState(false);
   
   // Business hours configuration
   const BUSINESS_START_HOUR = 9; // 9 AM
@@ -163,6 +173,7 @@ export default function HomeScreen({ navigation }) {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const totalAppointments = appointments.length;
+    const totalopenSpots = openSlots.length;
     const confirmedCount = appointments.filter(apt => apt.confirmed).length;
     const pendingCount = totalAppointments - confirmedCount;
     
@@ -179,7 +190,7 @@ export default function HomeScreen({ navigation }) {
     const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
 
     return {
-      total: totalAppointments,
+      total: totalopenSpots,
       confirmed: confirmedCount,
       pending: pendingCount,
       today: todayAppointments.length,
@@ -222,9 +233,9 @@ export default function HomeScreen({ navigation }) {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Header Section: Shows screen title and current date */}
         <View style={styles.screenHeader}>
-          <Text style={styles.screenTitle}>Schedule Overview</Text>
+          <Text style={styles.screenTitle}>{t('overview')}</Text>
           <Text style={styles.screenSub}>
-            {new Date().toLocaleDateString([], {
+            {formatDate(new Date(), language, {
               weekday: "long",
               month: "short",
               day: "numeric",
@@ -237,34 +248,36 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>{getT("total")}</Text>
+            <Text style={styles.statLabel}>{t('total')}
+
+            </Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>{stats.today}</Text>
-            <Text style={styles.statLabel}>{getT("today")}</Text>
+            <Text style={styles.statLabel}>{t('today')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, styles.statValueConfirmed]}>{stats.confirmed}</Text>
-            <Text style={styles.statLabel}>{getT("confirmed")}</Text>
+            <Text style={styles.statLabel}>{t('confirmed')}</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, styles.statValuePending]}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>{getT("pending")}</Text>
+            <Text style={styles.statLabel}>{t('pending')}</Text>
           </View>
         </View>
 
         {/* Next Appointment Highlight */}
         {stats.next && (
           <View style={styles.nextAppointmentCard}>
-            <Text style={styles.nextAppointmentLabel}>Next Appointment</Text>
+            <Text style={styles.nextAppointmentLabel}>{t('nextAppointment')}</Text>
             <Text style={styles.nextAppointmentClient}>{stats.next.client}</Text>
             <View style={styles.nextAppointmentDetails}>
               <Text style={styles.nextAppointmentTime}>
-                {stats.next.start.toLocaleDateString([], {
+                {formatDate(stats.next.start, language, {
                   month: "short",
                   day: "numeric",
                 })}{" "}
-                at {stats.next.start.toLocaleTimeString([], {
+                {t('at')} {formatTime(stats.next.start, language, {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: true,
@@ -282,7 +295,7 @@ export default function HomeScreen({ navigation }) {
                 })
               }
             >
-              <Text style={styles.viewButtonText}>View Details</Text>
+              <Text style={styles.viewButtonText}>{t('viewDetails')}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -290,8 +303,8 @@ export default function HomeScreen({ navigation }) {
         {/* Upcoming Appointments Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Upcoming Appointments</Text>
-            <Text style={styles.sectionSubtitle}>{stats.upcoming} upcoming</Text>
+            <Text style={styles.sectionTitle}>{t('aUpcoming')}</Text>
+            <Text style={styles.sectionSubtitle}>{stats.upcoming} {t('numUpcoming')}</Text>
           </View>
           {sortedAppointments.length > 0 ? (
             <FlatList
@@ -315,13 +328,13 @@ export default function HomeScreen({ navigation }) {
                           </View>
                         )}
                         <Text style={item.confirmed ? styles.badge : styles.badgePending}>
-                          {item.confirmed ? "Confirmed" : "Pending"}
+                          {item.confirmed ? t('confirmed') : t('pending')}
                         </Text>
                       </View>
                     </View>
                     <View style={styles.cardDetails}>
                       <Text style={styles.details}>
-                        {item.start.toLocaleDateString([], {
+                        {formatDate(item.start, language, {
                           weekday: "short",
                           month: "short",
                           day: "numeric",
@@ -329,7 +342,7 @@ export default function HomeScreen({ navigation }) {
                       </Text>
                       <Text style={styles.detailsSeparator}>•</Text>
                       <Text style={styles.details}>
-                        {item.start.toLocaleTimeString([], {
+                        {formatTime(item.start, language, {
                           hour: "2-digit",
                           minute: "2-digit",
                           hour12: true,
@@ -352,7 +365,7 @@ export default function HomeScreen({ navigation }) {
                         })
                       }
                     >
-                      <Text style={styles.actionButtonText}>View in Calendar</Text>
+                      <Text style={styles.actionButtonText}>{t('viewInCalendar')}</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -360,70 +373,80 @@ export default function HomeScreen({ navigation }) {
             />
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No appointments scheduled</Text>
+              <Text style={styles.emptyStateText}>{t('noAppointments')}</Text>
             </View>
           )}
         </View>
 
         {/* Available Time Slots Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Available Time Slots</Text>
-            <Text style={styles.sectionSubtitle}>{openSlots.length} available</Text>
-          </View>
-          {openSlots.length > 0 ? (
-            <FlatList
-              data={openSlots}
-              scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              keyExtractor={(item, index) => `slot-${item.start.getTime()}-${index}`}
-              renderItem={({ item }) => {
-                const isToday = new Date(item.start.getFullYear(), item.start.getMonth(), item.start.getDate()).getTime() === 
-                                new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
-                return (
-                  <View style={styles.slotCard}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardHeaderLeft}>
-                        <Text style={styles.slotDate}>
-                          {isToday ? "Today" : item.start.toLocaleDateString([], {
-                            weekday: "short",
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </Text>
-                        <Text style={styles.slotDuration}>2h slot</Text>
-                      </View>
-                      <Text style={styles.badgeLight}>Open</Text>
-                    </View>
-                    <Text style={styles.slotTime}>
-                      {item.start.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}{" "}
-                      - {item.end.toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.bookButton}
-                      onPress={() => {
-                        setSelectedDate(item.start);
-                        setModalVisible(true);
-                      }}
-                    >
-                      <Text style={styles.bookButtonText}>Book This Slot</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              }}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No available slots — schedule is full!</Text>
+          <TouchableOpacity
+            style={styles.sectionHeader}
+            activeOpacity={0.8}
+            onPress={() => setSlotsCollapsed((s) => !s)}
+          >
+            <View>
+              <Text style={styles.sectionTitle}>{t('apAvailable')}</Text>
+              <Text style={styles.sectionSubtitle}>{openSlots.length} {t('numAvailable')}</Text>
             </View>
+            <Text style={styles.collapseArrow}>{slotsCollapsed ? '▸' : '▾'}</Text>
+          </TouchableOpacity>
+
+          {!slotsCollapsed && (
+            openSlots.length > 0 ? (
+              <FlatList
+                data={openSlots}
+                scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={styles.separator} />}
+                keyExtractor={(item, index) => `slot-${item.start.getTime()}-${index}`}
+                renderItem={({ item }) => {
+                  const isToday = new Date(item.start.getFullYear(), item.start.getMonth(), item.start.getDate()).getTime() === 
+                                  new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+                  return (
+                    <View style={styles.slotCard}>
+                      <View style={styles.cardHeader}>
+                        <View style={styles.cardHeaderLeft}>
+                          <Text style={styles.slotDate}>
+                            {isToday ? t('today') : formatDate(item.start, language, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </Text>
+                          <Text style={styles.slotDuration}>{t("timeSlot")}</Text>
+                        </View>
+                        <Text style={styles.badgeLight}>{t('open')}</Text>
+                      </View>
+                      <Text style={styles.slotTime}>
+                        {formatTime(item.start, language, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}{" "}
+                        - {formatTime(item.end, language, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.bookButton}
+                        onPress={() => {
+                          setSelectedDate(item.start);
+                          setModalVisible(true);
+                        }}
+                      >
+                        <Text style={styles.bookButtonText}> {t('book')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>{t('fullSchedule')}</Text>
+              </View>
+            )
           )}
         </View>
 
@@ -786,5 +809,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 4,
     fontWeight: "400",
+  },
+  collapseArrow: {
+    fontSize: 20,
+    color: "#64748b",
+    marginLeft: 8,
   },
 });

@@ -5,9 +5,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from './screens/HomeScreen';
 import CalendarScreen from './screens/CalendarScreen';
 import ClientsScreen from './screens/Clients';
+import SettingsScreen from './screens/Settings';
 import AppointmentDetails from './screens/AppointmentDetails';
 import { AppointmentsProvider } from './context/AppointmentsContext';
 import { ClientsProvider } from './context/ClientsContext';
+import { LanguageProvider } from './context/LanguageContext';
+
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -52,6 +55,13 @@ function MainTabs() {
           tabBarLabel: 'Clients',
         }}
       />
+      <Tab.Screen 
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Settings',
+        }}
+        />
     </Tab.Navigator>
   );
 }
@@ -78,12 +88,14 @@ function RootNavigator() {
 
 export default function App() {
   return (
-    <ClientsProvider>
-      <AppointmentsProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </AppointmentsProvider>
-    </ClientsProvider>
+    <LanguageProvider>
+      <ClientsProvider>
+        <AppointmentsProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </AppointmentsProvider>
+      </ClientsProvider>
+    </LanguageProvider>
   );
 }
