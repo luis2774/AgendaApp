@@ -1,456 +1,249 @@
-/**
- * HomeScreen.js
- * 
- * This is the main dashboard screen that displays:
- * - Schedule overview with current date
- * - List of upcoming appointments
- * - Available time slots for booking
- * 
- * Features:
- * - Shows all appointments sorted by time
- * - Calculates and displays open time slots between appointments
- * - Allows booking appointments directly from available slots
- * - Navigates to calendar view for specific appointments
- */
-
 import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
   FlatList,
   StyleSheet,
-  Button,
   ScrollView,
   TouchableOpacity,
+  Pressable,
 } from "react-native";
-import { formatDate, formatTime } from "./helpers/timeFormat";  
+import { formatDate, formatTime } from "./helpers/timeFormat";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
-import { useLanguage } from '../context/LanguageContext';
-import { getT } from '../i18n/translations';
+import { useLanguage } from "../context/LanguageContext";
+import { getT } from "../i18n/translations";
+import { getAvailableSlots } from "./helpers/slotFinder";
 
 export default function HomeScreen({ navigation }) {
-  //get language from context
   const { language } = useLanguage();
   const t = (key) => getT(key, language);
-
-  // Get appointments from context
   const { appointments } = useAppointments();
 
-
-  
-  // State for controlling the add appointment modal
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-  // State to collapse/expand the Available Time Slots section
   const [slotsCollapsed, setSlotsCollapsed] = useState(false);
-  
-  // Business hours configuration
-  const BUSINESS_START_HOUR = 9; // 9 AM
-  const BUSINESS_END_HOUR = 16; // 4 PM
-  const SLOT_DURATION_MINUTES = 120; // 2 hour slots
 
-  /**
-   * Sort all appointments chronologically (earliest first)
-   * This ensures upcoming appointments are displayed in order
-   */
-  const sortedAppointments = [...appointments].sort(
-    (a, b) => a.start.getTime() - b.start.getTime()
-  );
+  // Constants
+  const DAYS_TO_SHOW = 7;
+  const START_HOUR = 9;
+  const END_HOUR = 16;
+  const DURATION = 120;
 
-  /**
-   * findOpenSlots: Calculates available time slots for booking
-   * Only shows slots from TODAY onward.
-   */
-  const findOpenSlots = () => {
-    const openSlots = [];
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // Build map of appointments by date
-    const appointmentsByDate = {};
-    appointments.forEach((apt) => {
-      const dateKey = new Date(
-        apt.start.getFullYear(),
-        apt.start.getMonth(),
-        apt.start.getDate()
-      ).getTime();
-
-      if (!appointmentsByDate[dateKey]) {
-        appointmentsByDate[dateKey] = [];
-      }
-      appointmentsByDate[dateKey].push(apt);
+  // Optimized Logic using the helper we created
+  const openSlots = useMemo(() => {
+    return getAvailableSlots(appointments, {
+      startHour: START_HOUR,
+      endHour: END_HOUR,
+      slotDuration: DURATION,
+      daysToShow: DAYS_TO_SHOW,
     });
+  }, [appointments]);
 
-    // Generate dates from today forward (next 7 days)
-    const DAYS_TO_SHOW = 7;
-    for (let dayOffset = 0; dayOffset < DAYS_TO_SHOW; dayOffset++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + dayOffset);
+  const sortedAppointments = useMemo(() => {
+    return [...appointments].sort(
+      (a, b) => a.start.getTime() - b.start.getTime(),
+    );
+  }, [appointments]);
 
-      const dateKey = date.getTime();
-      const dayAppointments = (appointmentsByDate[dateKey] || []).sort(
-        (a, b) => a.start.getTime() - b.start.getTime()
-      );
-
-      const businessStart = new Date(date);
-      businessStart.setHours(BUSINESS_START_HOUR, 0, 0, 0);
-
-      const businessEnd = new Date(date);
-      businessEnd.setHours(BUSINESS_END_HOUR, 0, 0, 0);
-
-      const isToday = dateKey === today.getTime();
-      const effectiveBusinessStart = isToday && now > businessStart ? now : businessStart;
-
-      // If no appointments, show full day slots
-      if (dayAppointments.length === 0) {
-        let slotStart = new Date(effectiveBusinessStart);
-        while (slotStart.getTime() + SLOT_DURATION_MINUTES * 60 * 1000 <= businessEnd.getTime()) {
-          const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-          openSlots.push({ start: new Date(slotStart), end: slotEnd, date: date.toDateString() });
-          slotStart = new Date(slotEnd);
-        }
-        continue;
-      }
-
-      // Slot before first appointment
-      const firstApt = dayAppointments[0];
-      if (firstApt.start.getTime() > effectiveBusinessStart.getTime()) {
-        const slotEnd = firstApt.start;
-        const slotStart = new Date(slotEnd.getTime() - SLOT_DURATION_MINUTES * 60 * 1000);
-        if (slotStart.getTime() >= effectiveBusinessStart.getTime()) {
-          openSlots.push({ start: slotStart, end: slotEnd, date: date.toDateString() });
-        }
-      }
-
-      // Slots between appointments
-      for (let i = 0; i < dayAppointments.length - 1; i++) {
-        const currentEnd = dayAppointments[i].end
-          ? new Date(dayAppointments[i].end)
-          : new Date(dayAppointments[i].start.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-
-        const nextStart = dayAppointments[i + 1].start;
-        const gapMs = nextStart.getTime() - currentEnd.getTime();
-        const gapMinutes = gapMs / (1000 * 60);
-
-        if (gapMinutes >= SLOT_DURATION_MINUTES) {
-          let slotStart = new Date(currentEnd);
-          while (slotStart.getTime() + SLOT_DURATION_MINUTES * 60 * 1000 <= nextStart.getTime()) {
-            const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-            openSlots.push({ start: new Date(slotStart), end: slotEnd, date: date.toDateString() });
-            slotStart = new Date(slotEnd);
-          }
-        }
-      }
-
-      // Slot after last appointment
-      const lastAptEnd = dayAppointments[dayAppointments.length - 1].end
-        ? new Date(dayAppointments[dayAppointments.length - 1].end)
-        : new Date(dayAppointments[dayAppointments.length - 1].start.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-
-      if (lastAptEnd.getTime() < businessEnd.getTime()) {
-        const slotStart = lastAptEnd;
-        const slotEnd = new Date(slotStart.getTime() + SLOT_DURATION_MINUTES * 60 * 1000);
-        if (slotEnd.getTime() <= businessEnd.getTime()) {
-          const effectiveSlotStart = isToday && slotStart.getTime() < now.getTime() ? now : slotStart;
-          if (effectiveSlotStart.getTime() < slotEnd.getTime()) {
-            openSlots.push({ start: effectiveSlotStart, end: slotEnd, date: date.toDateString() });
-          }
-        }
-      }
-    }
-
-    return openSlots.sort((a, b) => a.start.getTime() - b.start.getTime());
-  };
-
-  // Calculate available slots once when component renders
-  const openSlots = findOpenSlots();
-
-  // Calculate statistics
   const stats = useMemo(() => {
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
 
-    const totalAppointments = appointments.length;
-    const totalopenSpots = openSlots.length;
-    const confirmedCount = appointments.filter(apt => apt.confirmed).length;
-    const pendingCount = totalAppointments - confirmedCount;
-    
-    // Appointments today
-    const todayAppointments = appointments.filter(apt => {
-      const aptDate = new Date(apt.start.getFullYear(), apt.start.getMonth(), apt.start.getDate());
-      return aptDate.getTime() === today.getTime();
-    });
-
-    // Upcoming appointments (from now)
-    const upcomingAppointments = sortedAppointments.filter(apt => apt.start > now);
-
-    // Next appointment
-    const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+    const todayApts = appointments.filter(
+      (a) => a.start >= todayStart && a.start <= todayEnd,
+    );
+    const upcomingApts = appointments.filter((a) => a.start > now);
+    const confirmedCount = appointments.filter((a) => a.confirmed).length;
 
     return {
-      total: totalopenSpots,
+      totalAvailable: openSlots.length,
+      todayCount: todayApts.length,
       confirmed: confirmedCount,
-      pending: pendingCount,
-      today: todayAppointments.length,
-      upcoming: upcomingAppointments.length,
-      next: nextAppointment,
+      pending: appointments.length - confirmedCount,
+      next: upcomingApts.sort((a, b) => a.start - b.start)[0] || null,
     };
-  }, [appointments, sortedAppointments]);
+  }, [appointments, openSlots]);
 
-  // Format time until next appointment
   const getTimeUntil = (date) => {
     const now = new Date();
     const diff = date.getTime() - now.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `${days} day${days > 1 ? 's' : ''}`;
-    } else if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (minutes > 0) {
-      return `${minutes} min`;
-    } else {
-      return 'Now';
-    }
-  };
-
-  // Get appointment duration (default 2 hours)
-  const getAppointmentDuration = (appointment) => {
-    if (appointment.end) {
-      const diff = appointment.end.getTime() - appointment.start.getTime();
-      const hours = diff / (1000 * 60 * 60);
-      return `${hours.toFixed(1)}h`;
-    }
-    return '2h'; // Default duration
+    const mins = Math.floor(diff / 60000);
+    const hrs = Math.floor(mins / 60);
+    if (hrs > 24) return `${Math.floor(hrs / 24)}d`;
+    if (hrs > 0) return `${hrs}h ${mins % 60}m`;
+    return `${mins}m`;
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Header Section: Shows screen title and current date */}
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+      >
+        {/* Header */}
         <View style={styles.screenHeader}>
-          <Text style={styles.screenTitle}>{t('overview')}</Text>
+          <Text style={styles.screenTitle}>{t("overview")}</Text>
           <Text style={styles.screenSub}>
             {formatDate(new Date(), language, {
               weekday: "long",
               month: "short",
               day: "numeric",
-              year: "numeric",
             })}
           </Text>
         </View>
 
-        {/* Statistics Section */}
+        {/* Stats Grid */}
         <View style={styles.statsContainer}>
+          <View style={[styles.statCard, styles.activeStat]}>
+            <Text style={styles.statValue}>{stats.todayCount}</Text>
+            <Text style={styles.statLabel}>{t("today")}</Text>
+          </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.total}</Text>
-            <Text style={styles.statLabel}>{t('total')}
-
+            <Text style={[styles.statValue, { color: "#6366f1" }]}>
+              {stats.confirmed}
             </Text>
+            <Text style={styles.statLabel}>{t("confirmed")}</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.today}</Text>
-            <Text style={styles.statLabel}>{t('today')}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, styles.statValueConfirmed]}>{stats.confirmed}</Text>
-            <Text style={styles.statLabel}>{t('confirmed')}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, styles.statValuePending]}>{stats.pending}</Text>
-            <Text style={styles.statLabel}>{t('pending')}</Text>
+            <Text style={[styles.statValue, { color: "#f59e0b" }]}>
+              {stats.pending}
+            </Text>
+            <Text style={styles.statLabel}>{t("pending")}</Text>
           </View>
         </View>
 
-        {/* Next Appointment Highlight */}
+        {/* Highlight Card */}
         {stats.next && (
-          <View style={styles.nextAppointmentCard}>
-            <Text style={styles.nextAppointmentLabel}>{t('nextAppointment')}</Text>
-            <Text style={styles.nextAppointmentClient}>{stats.next.client}</Text>
-            <View style={styles.nextAppointmentDetails}>
-              <Text style={styles.nextAppointmentTime}>
-                {formatDate(stats.next.start, language, {
-                  month: "short",
-                  day: "numeric",
-                })}{" "}
-                {t('at')} {formatTime(stats.next.start, language, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                })}
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextAppointmentCard,
+              pressed && { opacity: 0.9 },
+            ]}
+            onPress={() =>
+              navigation.navigate("Calendar", {
+                highlightDate: stats.next.start.toISOString(),
+              })
+            }
+          >
+            <View style={styles.nextHeader}>
+              <Text style={styles.nextAppointmentLabel}>
+                {t("nextAppointment")}
               </Text>
-              <Text style={styles.nextAppointmentCountdown}>
-                in {getTimeUntil(stats.next.start)}
+              <Text style={styles.nextTag}>
+                {t("in")} {getTimeUntil(stats.next.start)}
               </Text>
             </View>
-            <TouchableOpacity
-              style={styles.viewButton}
-              onPress={() =>
-                navigation.navigate("Calendar", {
-                  highlightDate: stats.next.start.toISOString(),
-                })
-              }
-            >
-              <Text style={styles.viewButtonText}>{t('viewDetails')}</Text>
-            </TouchableOpacity>
-          </View>
+            <Text style={styles.nextAppointmentClient}>
+              {stats.next.client}
+            </Text>
+            <Text style={styles.nextAppointmentTime}>
+              {formatTime(stats.next.start, language, {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </Text>
+          </Pressable>
         )}
 
-        {/* Upcoming Appointments Section */}
+        {/* Upcoming Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('aUpcoming')}</Text>
-            <Text style={styles.sectionSubtitle}>{stats.upcoming} {t('numUpcoming')}</Text>
-          </View>
+          <Text style={styles.sectionTitle}>{t("aUpcoming")}</Text>
           {sortedAppointments.length > 0 ? (
-            <FlatList
-              data={sortedAppointments}
-              scrollEnabled={false}
-              ItemSeparatorComponent={() => <View style={styles.separator} />}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => {
-                const isPast = item.start < new Date();
-                return (
-                  <View style={[styles.card, isPast && styles.cardPast]}>
-                    <View style={styles.cardHeader}>
-                      <View style={styles.cardHeaderLeft}>
-                        <Text style={styles.client}>{item.client}</Text>
-                        <Text style={styles.duration}>{getAppointmentDuration(item)}</Text>
-                      </View>
-                      <View style={styles.badgeContainer}>
-                        {item.reminder_sent && (
-                          <View style={styles.reminderBadge}>
-                            <Text style={styles.reminderBadgeText}>✓</Text>
-                          </View>
-                        )}
-                        <Text style={item.confirmed ? styles.badge : styles.badgePending}>
-                          {item.confirmed ? t('confirmed') : t('pending')}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.cardDetails}>
-                      <Text style={styles.details}>
-                        {formatDate(item.start, language, {
-                          weekday: "short",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </Text>
-                      <Text style={styles.detailsSeparator}>•</Text>
-                      <Text style={styles.details}>
-                        {formatTime(item.start, language, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </Text>
-                      {!isPast && item.start > new Date() && (
-                        <>
-                          <Text style={styles.detailsSeparator}>•</Text>
-                          <Text style={styles.timeUntil}>
-                            {getTimeUntil(item.start)}
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() =>
-                        navigation.navigate("Calendar", {
-                          highlightDate: item.start.toISOString(),
-                        })
-                      }
-                    >
-                      <Text style={styles.actionButtonText}>{t('viewInCalendar')}</Text>
-                    </TouchableOpacity>
+            sortedAppointments.map((item, index) => (
+              <View key={item.id} style={styles.timelineItem}>
+                <View style={styles.timelineLine}>
+                  <View
+                    style={[
+                      styles.timelineDot,
+                      item.start < new Date() && styles.dotPast,
+                    ]}
+                  />
+                  {index !== sortedAppointments.length - 1 && (
+                    <View style={styles.verticalLine} />
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.appointmentCard,
+                    item.start < new Date() && styles.cardPast,
+                  ]}
+                  onPress={() =>
+                    navigation.navigate("Calendar", {
+                      highlightDate: item.start.toISOString(),
+                    })
+                  }
+                >
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.clientName}>{item.client}</Text>
+                    <Text style={styles.timeText}>
+                      {formatTime(item.start, language)}
+                    </Text>
                   </View>
-                );
-              }}
-            />
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      item.confirmed ? styles.badgeOk : styles.badgeWait,
+                    ]}
+                  >
+                    <Text style={styles.badgeText}>
+                      {item.confirmed ? "✓" : "?"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            ))
           ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>{t('noAppointments')}</Text>
-            </View>
+            <Text style={styles.emptyText}>{t("noAppointments")}</Text>
           )}
         </View>
 
-        {/* Available Time Slots Section */}
-        <View style={styles.section}>
+        {/* Available Slots Section */}
+        <View style={[styles.section, { marginTop: 30 }]}>
           <TouchableOpacity
-            style={styles.sectionHeader}
-            activeOpacity={0.8}
-            onPress={() => setSlotsCollapsed((s) => !s)}
+            style={styles.collapseHeader}
+            onPress={() => setSlotsCollapsed(!slotsCollapsed)}
           >
-            <View>
-              <Text style={styles.sectionTitle}>{t('apAvailable')}</Text>
-              <Text style={styles.sectionSubtitle}>{openSlots.length} {t('numAvailable')}</Text>
-            </View>
-            <Text style={styles.collapseArrow}>{slotsCollapsed ? '▸' : '▾'}</Text>
+            <Text style={styles.sectionTitle}>{t("apAvailable")}</Text>
+            <Text style={styles.slotCount}>
+              {openSlots.length} {t("open")}
+            </Text>
           </TouchableOpacity>
 
-          {!slotsCollapsed && (
-            openSlots.length > 0 ? (
-              <FlatList
-                data={openSlots}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={styles.separator} />}
-                keyExtractor={(item, index) => `slot-${item.start.getTime()}-${index}`}
-                renderItem={({ item }) => {
-                  const isToday = new Date(item.start.getFullYear(), item.start.getMonth(), item.start.getDate()).getTime() === 
-                                  new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
-                  return (
-                    <View style={styles.slotCard}>
-                      <View style={styles.cardHeader}>
-                        <View style={styles.cardHeaderLeft}>
-                          <Text style={styles.slotDate}>
-                            {isToday ? t('today') : formatDate(item.start, language, {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </Text>
-                          <Text style={styles.slotDuration}>{t("timeSlot")}</Text>
-                        </View>
-                        <Text style={styles.badgeLight}>{t('open')}</Text>
-                      </View>
-                      <Text style={styles.slotTime}>
-                        {formatTime(item.start, language, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}{" "}
-                        - {formatTime(item.end, language, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.bookButton}
-                        onPress={() => {
-                          setSelectedDate(item.start);
-                          setModalVisible(true);
-                        }}
-                      >
-                        <Text style={styles.bookButtonText}> {t('book')}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
+          {!slotsCollapsed &&
+            openSlots.map((slot, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.slotCard}
+                onPress={() => {
+                  setSelectedDate(slot.start);
+                  setModalVisible(true);
                 }}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>{t('fullSchedule')}</Text>
-              </View>
-            )
-          )}
+              >
+                <View>
+                  <Text style={styles.slotDay}>
+                    {formatDate(slot.start, language, {
+                      month:"short",
+                      weekday: "short",
+                      day: "numeric",
+                    })}
+                  </Text>
+                  <Text style={styles.slotTimeRange}>
+                    {formatTime(slot.start, language)} -{" "}
+                    {formatTime(slot.end, language)}
+                  </Text>
+                </View>
+                <View style={styles.bookAction}>
+                  <Text style={styles.bookText}>{t("book")}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
         </View>
 
-        {/* Add Appointment Modal */}
         <AddAppointmentModal
           visible={modalVisible}
           onClose={() => {
@@ -465,354 +258,172 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f1f5f9",
+  safeArea: { flex: 1, backgroundColor: "#f8fafc" },
+  container: { flex: 1 },
+  content: { padding: 20, paddingBottom: 60 },
+
+  // Header
+  screenHeader: { marginBottom: 25 },
+  screenTitle: {
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#1e293b",
+    letterSpacing: -1,
   },
-  container: { 
-    flex: 1, 
-    backgroundColor: "#f1f5f9" 
-  },
-  content: { 
-    padding: 20, 
-    paddingBottom: 40 
-  },
-  
-  // Header Styles
-  screenHeader: { 
-    marginBottom: 20 
-  },
-  screenTitle: { 
-    fontSize: 34, 
-    fontWeight: "700", 
-    color: "#0f172a",
-    letterSpacing: -0.8,
-    marginBottom: 6,
-  },
-  screenSub: { 
-    fontSize: 16, 
-    color: "#64748b", 
-    fontWeight: "400",
-  },
-  
-  // Statistics Section
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    gap: 12,
-  },
+  screenSub: { fontSize: 16, color: "#64748b", marginTop: 4 },
+
+  // Stats Grid
+  statsContainer: { flexDirection: "row", gap: 12, marginBottom: 25 },
   statCard: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
+    backgroundColor: "#fff",
     padding: 16,
+    borderRadius: 20,
     alignItems: "center",
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
   },
-  statValue: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#0f172a",
-    marginBottom: 4,
-  },
-  statValueConfirmed: {
-    color: "#6366f1",
-  },
-  statValuePending: {
-    color: "#f59e0b",
-  },
+  activeStat: { borderWidth: 2, borderColor: "#6366f1" },
+  statValue: { fontSize: 22, fontWeight: "800", color: "#1e293b" },
   statLabel: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "500",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#94a3b8",
+    marginTop: 4,
   },
-  
+
   // Next Appointment Card
   nextAppointmentCard: {
-    backgroundColor: "#6366f1",
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: "#6366f1",
-    shadowOffset: { width: 0, height: 4 },
+    backgroundColor: "#4f46e5",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#4f46e5",
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowRadius: 15,
+    elevation: 8,
+  },
+  nextHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
   },
   nextAppointmentLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontWeight: "700",
     fontSize: 12,
-    color: "#e0e7ff",
-    fontWeight: "600",
-    textTransform: "uppercase",
     letterSpacing: 1,
-    marginBottom: 8,
   },
-  nextAppointmentClient: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#ffffff",
-    marginBottom: 12,
-  },
-  nextAppointmentDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-    flexWrap: "wrap",
-  },
-  nextAppointmentTime: {
-    fontSize: 16,
-    color: "#e0e7ff",
-    fontWeight: "500",
-    marginRight: 12,
-  },
-  nextAppointmentCountdown: {
-    fontSize: 16,
-    color: "#ffffff",
-    fontWeight: "700",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+  nextTag: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    color: "#fff",
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
-  },
-  viewButton: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    alignSelf: "flex-start",
-  },
-  viewButtonText: {
-    color: "#6366f1",
-    fontSize: 15,
+    borderRadius: 10,
+    fontSize: 12,
     fontWeight: "600",
   },
-  
-  // Section Styles
-  section: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+  nextAppointmentClient: { color: "#fff", fontSize: 28, fontWeight: "800" },
+  nextAppointmentTime: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 18,
+    marginTop: 5,
+    fontWeight: "500",
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
+
+  // Timeline & Sections
+  section: { marginTop: 20 },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
-    color: "#0f172a",
-    letterSpacing: -0.4,
+    color: "#1e293b",
+    marginBottom: 15,
   },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: "#64748b",
-    fontWeight: "500",
+  timelineItem: { flexDirection: "row", minHeight: 80 },
+  timelineLine: { width: 30, alignItems: "center" },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#6366f1",
+    marginTop: 24,
+    zIndex: 2,
+    borderWidth: 2,
+    borderColor: "#fff",
   },
-  separator: { 
-    height: 12 
-  },
-  
-  // Card Styles
-  card: {
-    padding: 18,
-    backgroundColor: "#f8fafc",
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: "#6366f1",
-  },
-  cardPast: {
-    opacity: 0.6,
-    borderLeftColor: "#94a3b8",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  cardHeaderLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  client: { 
-    fontSize: 18, 
-    fontWeight: "600", 
-    color: "#0f172a",
-    letterSpacing: -0.3,
-    flex: 1,
-  },
-  duration: {
-    fontSize: 13,
-    color: "#64748b",
-    fontWeight: "500",
+  dotPast: { backgroundColor: "#cbd5e1" },
+  verticalLine: {
+    position: "absolute",
+    top: 30,
+    bottom: 0,
+    width: 2,
     backgroundColor: "#e2e8f0",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
   },
-  badgeContainer: {
+  appointmentCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    marginBottom: 12,
+    borderRadius: 16,
+    padding: 16,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 8,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
   },
-  reminderBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#10b981",
+  cardPast: { opacity: 0.6 },
+  clientName: { fontSize: 16, fontWeight: "700", color: "#334155" },
+  timeText: { fontSize: 14, color: "#64748b", marginTop: 2 },
+  statusBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  reminderBadgeText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  badge: {
-    backgroundColor: "#e0e7ff",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6366f1",
-    overflow: "hidden",
-  },
-  badgePending: {
-    backgroundColor: "#fef3c7",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#d97706",
-    overflow: "hidden",
-  },
-  badgeLight: {
-    backgroundColor: "#dbeafe",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#3b82f6",
-    overflow: "hidden",
-  },
-  cardDetails: {
+  badgeOk: { backgroundColor: "#dcfce7" },
+  badgeWait: { backgroundColor: "#fef3c7" },
+  badgeText: { fontWeight: "800", fontSize: 14 },
+
+  // Slots
+  collapseHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
-    flexWrap: "wrap",
+    marginBottom: 10,
   },
-  details: { 
-    fontSize: 14, 
-    color: "#475569", 
-    fontWeight: "500",
-  },
-  detailsSeparator: {
-    fontSize: 14,
-    color: "#cbd5e1",
-    marginHorizontal: 8,
-  },
-  timeUntil: {
-    fontSize: 14,
-    color: "#6366f1",
-    fontWeight: "600",
-  },
-  actionButton: {
-    backgroundColor: "#6366f1",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
-  },
-  actionButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  
-  // Slot Card Styles
+  slotCount: { color: "#6366f1", fontWeight: "700" },
   slotCard: {
-    padding: 18,
-    backgroundColor: "#f0fdf4",
+    backgroundColor: "#fff",
+    padding: 16,
     borderRadius: 16,
-    borderLeftWidth: 4,
+    marginBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderLeftWidth: 5,
     borderLeftColor: "#10b981",
   },
-  slotDate: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    color: "#166534",
-    letterSpacing: -0.2,
-  },
-  slotDuration: {
-    fontSize: 13,
-    color: "#15803d",
-    fontWeight: "500",
-    backgroundColor: "#dcfce7",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  slotTime: { 
-    fontSize: 15, 
-    color: "#15803d", 
-    marginBottom: 14,
-    fontWeight: "500",
-  },
-  bookButton: {
-    backgroundColor: "#10b981",
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    alignSelf: "flex-start",
-  },
-  bookButtonText: {
-    color: "#ffffff",
+  slotDay: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
+    color: "#10b981",
+    textTransform: "uppercase",
   },
-  
-  // Empty State
-  emptyState: {
-    padding: 24,
-    alignItems: "center",
+  slotTimeRange: { fontSize: 16, fontWeight: "600", color: "#334155" },
+  bookAction: {
+    backgroundColor: "#10b981",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  emptyStateText: {
-    fontSize: 15,
+  bookText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  emptyText: {
     color: "#94a3b8",
     fontStyle: "italic",
-    fontWeight: "400",
-  },
-  noSlots: {
-    fontSize: 15,
-    color: "#94a3b8",
-    fontStyle: "italic",
-    marginTop: 12,
-    paddingHorizontal: 4,
-    fontWeight: "400",
-  },
-  collapseArrow: {
-    fontSize: 20,
-    color: "#64748b",
-    marginLeft: 8,
+    textAlign: "center",
+    marginTop: 10,
   },
 });

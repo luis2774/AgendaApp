@@ -19,7 +19,9 @@ import {
   ScrollView,
   Dimensions,
   Alert,
+  TouchableOpacity,
 } from "react-native";
+import { Ionicons } from '@expo/vector-icons';
 
 
 import { formatDate, formatTime } from "./helpers/timeFormat";  
@@ -134,95 +136,85 @@ export default function CalendarScreen({ navigation, route }) {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Header Section */}
-        <View style={styles.header}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <View style={styles.header}>
+        <View style={styles.topRow}>
           <Text style={styles.monthText}>
-            {formatDate(currentDate, language,{
-              month: "long",
-              year: "numeric",
-              })}
+            {formatDate(currentDate, language, { month: "long", year: "numeric" })}
           </Text>
-
-          {/* Mode Toggle */}
-          <View style={styles.modeRow}>
-            <Button title={t('month')} onPress={() => setMode("month")} />
-            <Button title={t('week')} onPress={() => setMode("week")} />
-          </View>
-
-          {/* Navigation Buttons */}
-          <View style={styles.navRow}>
-            <Button title={t('prev')} onPress={goPrev} />
-            <Button title={t('next')} onPress={goNext} />
+          
+          {/* Navigation Arrows */}
+          <View style={styles.navIcons}>
+            <TouchableOpacity onPress={goPrev} style={styles.iconBtn}>
+              <Ionicons name="chevron-back" size={24} color="#64748b" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={goNext} style={styles.iconBtn}>
+              <Ionicons name="chevron-forward" size={24} color="#64748b" />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* Calendar Container */}
-        <View style={styles.calendarContainer}>
-          <Calendar
+        {/* Custom Segmented Control */}
+        <View style={styles.segmentedControl}>
+          <TouchableOpacity 
+            style={[styles.segment, mode === "month" && styles.activeSegment]} 
+            onPress={() => setMode("month")}
+          >
+            <Text style={[styles.segmentText, mode === "month" && styles.activeSegmentText]}>
+              {t('month')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.segment, mode === "week" && styles.activeSegment]} 
+            onPress={() => setMode("week")}
+          >
+            <Text style={[styles.segmentText, mode === "week" && styles.activeSegmentText]}>
+              {t('week')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.calendarContainer}>
+        <Calendar
           locale={calendarLocale}
-            events={appointments.map((a) => ({
-              ...a,
-              title: a.client,
-              end: a.end || new Date(a.start.getTime() + 60 * 60 * 1000),
-            }))}
-            date={currentDate}
-            mode={mode}
-
-            // ✅ BIGGER MONTH VIEW
-            height={mode === "month" ? SCREEN_HEIGHT * 0.78 : SCREEN_HEIGHT * 0.85}
-
-            hourRowHeight={70}
-            hideNowIndicator
-            showTime={false}
-
-            // Spacing to avoid cramped events
-            eventCellStyle={{
-              backgroundColor: "#3b82f6",
-              borderRadius: 12,
-              paddingVertical: 4,
-              paddingHorizontal: 6,
-              marginVertical: 2,
-              minHeight: 40,
-            }}
-            eventCellTextStyle={{
-              fontSize: 12,
-              fontWeight: "600",
-              color: "#fff",
-            }}
-
-            dayHeaderStyle={{
-              paddingVertical: 10,
-              borderBottomWidth: 0,
-            }}
-            bodyContainerStyle={{
-              borderTopWidth: 0,
-            }}
-
-            onPressCell={handleDayPress}
-            onPressEvent={(event) => {
-              const endTime = event.end || new Date(event.start.getTime() + 60 * 60 * 1000);
-              const serializedEvent = {
-                ...event,
-                start: event.start.toISOString(),
-                end: endTime.toISOString(),
-                appointment_at: event.appointment_at ? event.appointment_at.toISOString() : null,
-                reminder_at: event.reminder_at ? event.reminder_at.toISOString() : null,
-              };
-              navigation.navigate("AppointmentDetail", { event: serializedEvent });
-            }}
-            onLongPressEvent={handleLongPressEvent}
-          />
-        </View>
-
-        {/* Add Appointment Modal */}
-        <AddAppointmentModal
-          visible={modalVisible}
-          onClose={() => setModalVisible(false)}
-          selectedDate={selectedDate}
+          events={appointments.map((a) => ({
+            ...a,
+            title: a.client,
+            end: a.end || new Date(a.start.getTime() + 60 * 60 * 1000),
+          }))}
+          date={currentDate}
+          mode={mode}
+          height={mode === "month" ? SCREEN_HEIGHT * 0.72 : SCREEN_HEIGHT * 0.78}
+          hourRowHeight={70}
+          hideNowIndicator
+          showTime={mode === "week"} // Only show times in week view
+          
+          eventCellStyle={(event) => ({
+            backgroundColor: "#6366f1", // Using a cleaner Indigo
+            borderRadius: 8,
+            borderLeftWidth: 4,
+            borderLeftColor: "#4338ca", // Accent stripe
+          })}
+          
+          onPressCell={handleDayPress}
+          onPressEvent={(event) => {
+            const endTime = event.end || new Date(event.start.getTime() + 60 * 60 * 1000);
+            const serializedEvent = {
+              ...event,
+              start: event.start.toISOString(),
+              end: endTime.toISOString(),
+            };
+            navigation.navigate("AppointmentDetail", { event: serializedEvent });
+          }}
         />
-      </ScrollView>
+      </View>
+
+      <AddAppointmentModal
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        selectedDate={selectedDate}
+      />
     </SafeAreaView>
   );
 }
@@ -230,47 +222,70 @@ export default function CalendarScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#f8fafc",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#f8fafc",
-  },
-  content: {
-    padding: 24,
-    paddingBottom: 40,
+    backgroundColor: "#ffffff",
   },
   header: {
-    marginBottom: 28,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 15,
+    backgroundColor: "#ffffff",
   },
-  monthText: {
-    fontSize: 32,
-    fontWeight: "500",
-    textAlign: "center",
-    color: "#1e293b",
-    marginBottom: 12,
-    letterSpacing: -0.5,
-  },
-  modeRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 12,
-    marginBottom: 12,
-  },
-  navRow: {
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  monthText: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#0f172a",
+    letterSpacing: -0.5,
+  },
+  navIcons: {
+    flexDirection: "row",
+    gap: 15,
+  },
+  iconBtn: {
+    padding: 8,
+    backgroundColor: "#f1f5f9",
+    borderRadius: 10,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    padding: 4,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  activeSegment: {
+    backgroundColor: "#ffffff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  activeSegmentText: {
+    color: "#0f172a",
   },
   calendarContainer: {
+    flex: 1,
     backgroundColor: "#ffffff",
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-    overflow: "hidden",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    // Add a subtle border to separate header from calendar
+    borderTopWidth: 1,
+    borderTopColor: "#f1f5f9",
   },
 });

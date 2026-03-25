@@ -24,6 +24,7 @@ export default {
     nextAppointment: "Next Appointment",
     viewDetails: "View Details",
     viewInCalendar: "View in Calendar",
+    in: "in",
 //Calendar screen
 prev:"← Prev",
 next:"Next →",
@@ -43,6 +44,17 @@ addclientName:"Enter clients name",
 phoneNumber:"Phone Number",
 save:"Save",
 cancel:"Cancel",
+
+
+//add appointment modal
+
+addAppointment: "Add Appointment",
+selectClient: "Select Client",
+duration: "Duration (Hours)",
+time: "Time",
+saveAppointment: "Save Appointment",
+
+
 
   };
   

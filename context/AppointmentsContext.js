@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useMemo, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useEffect,
+} from "react";
 import { appointments as initialAppointments } from "../data/appointments";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
@@ -15,9 +21,9 @@ export const AppointmentsProvider = ({ children }) => {
     const configured = isSupabaseConfigured();
     setSupabaseEnabled(configured);
     if (!configured) {
-      console.log('ℹ️ Supabase not configured, using local storage');
+      console.log("ℹ️ Supabase not configured, using local storage");
     } else {
-      console.log('✅ Supabase configured and ready');
+      console.log("✅ Supabase configured and ready");
     }
   }, []);
 
@@ -40,8 +46,9 @@ export const AppointmentsProvider = ({ children }) => {
 
       // Query appointments with join to clients table to get client name
       const { data, error: supabaseError } = await supabase
-        .from('appointments')
-        .select(`
+        .from("appointments")
+        .select(
+          `
           apt_id,
           client_id,
           appointment_at,
@@ -54,8 +61,9 @@ export const AppointmentsProvider = ({ children }) => {
             name,
             phone
           )
-        `)
-        .order('appointment_at', { ascending: true });
+        `,
+        )
+        .order("appointment_at", { ascending: true });
 
       if (supabaseError) {
         throw supabaseError;
@@ -64,8 +72,8 @@ export const AppointmentsProvider = ({ children }) => {
       // Convert Supabase timestamps to Date objects
       const convertedAppointments = (data || []).map((apt) => {
         const startTime = new Date(apt.appointment_at);
-        const clientName = apt.clients?.name || 'Unknown Client';
-        
+        const clientName = apt.clients?.name || "Unknown Client";
+
         return {
           id: apt.apt_id,
           client: clientName,
@@ -81,8 +89,9 @@ export const AppointmentsProvider = ({ children }) => {
 
       setAppointments(convertedAppointments);
     } catch (err) {
-      console.error('Error loading appointments from Supabase:', err);
-      setError(err.message || 'Failed to load appointments');
+      console.error("Error loading appointments from Supabase:", err);
+      setError(err.message || "Failed to load appointments");
+
       // Fallback to local data on error
       setAppointments(initialAppointments);
     } finally {
@@ -92,112 +101,27 @@ export const AppointmentsProvider = ({ children }) => {
 
   // Delete appointment from Supabase (and local state)
   const deleteAppointment = async (appointmentId) => {
-    // Validate appointmentId
-    if (!appointmentId) {
-      throw new Error('Appointment ID is required');
-    }
+    // 1. Keep a backup for "Undo" if the DB call fails
+    const previousAppointments = [...appointments];
 
-    // Find the appointment in local state
-    const appointmentToDelete = appointments.find((apt) => apt.id === appointmentId);
-    
-    if (!appointmentToDelete) {
-      throw new Error('Appointment not found in local state');
-    }
+    // 2. Optimistic Update: Remove it from UI immediately
+    setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
 
-    // Check if Supabase is actually configured (double-check, not just state)
-    const isConfigured = isSupabaseConfigured();
-    
-    // Debug: Log current state
-    console.log('🔍 Delete appointment - Debug info:', {
-      appointmentId,
-      apt_id: appointmentToDelete.id,
-      client: appointmentToDelete.client,
-      supabaseEnabled,
-      isSupabaseConfigured: isConfigured,
-      hasSupabaseClient: !!supabase,
-    });
-
-    // If Supabase is configured, delete from database FIRST
-    // Use isConfigured check as well as supabaseEnabled state
-    if ((supabaseEnabled || isConfigured) && supabase) {
-      try {
-        console.log('🗑️ Attempting to delete appointment from Supabase:', { 
-          appointmentId, 
-          apt_id: appointmentToDelete.id,
-          client: appointmentToDelete.client,
-          table: 'appointments',
-          column: 'apt_id'
-        });
-        
-        // Verify Supabase client is valid before using
-        if (!supabase || typeof supabase.from !== 'function') {
-          throw new Error('Supabase client is not properly initialized');
-        }
-        
-        // Delete from Supabase using apt_id (which matches the local id)
-        const { data, error: supabaseError } = await supabase
-          .from('appointments')
+    try {
+      if (supabaseEnabled) {
+        const { error: supabaseError } = await supabase
+          .from("appointments")
           .delete()
-          .eq('apt_id', appointmentId)
-          .select();
+          .eq("apt_id", appointmentId);
 
-        console.log('📊 Supabase delete response:', { data, error: supabaseError });
-
-        if (supabaseError) {
-          console.error('❌ Supabase delete error:', {
-            message: supabaseError.message,
-            details: supabaseError.details,
-            hint: supabaseError.hint,
-            code: supabaseError.code,
-          });
-          setError(supabaseError.message || 'Failed to delete appointment from database');
-          throw new Error(`Failed to delete appointment: ${supabaseError.message || 'Unknown error'}`);
-        }
-
-        // Verify deletion was successful
-        // If data is empty/null, it could be RLS blocking the delete (even though row exists)
-        if (!data || data.length === 0) {
-          const errorMsg = 'No rows deleted from Supabase. This is likely due to RLS (Row Level Security) permissions. Please check your DELETE policy on the appointments table.';
-          console.error('❌', errorMsg);
-          console.error('🔍 Troubleshooting:');
-          console.error('   1. Check if RLS is enabled: SELECT tablename, rowsecurity FROM pg_tables WHERE tablename = \'appointments\';');
-          console.error('   2. Check existing policies: SELECT * FROM pg_policies WHERE tablename = \'appointments\';');
-          console.error('   3. You may need to create a DELETE policy. See FIX_RLS_DELETE_POLICY.sql');
-          setError(errorMsg);
-          throw new Error(errorMsg);
-        } else {
-          console.log('✅ Successfully deleted appointment from Supabase:', data);
-        }
-
-        // Only remove from local state after successful Supabase deletion
-        console.log('🔄 Removing appointment from local state...');
-        setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
-
-        // Reload appointments to ensure sync with database
-        // Wrap in try-catch so reload failure doesn't undo successful deletion
-        try {
-          console.log('🔄 Reloading appointments from Supabase...');
-          await loadAppointments();
-          console.log('✅ Appointments reloaded successfully');
-        } catch (reloadError) {
-          console.warn('⚠️ Failed to reload appointments after deletion, but deletion was successful:', reloadError);
-          // Don't throw - deletion succeeded, reload failure is non-critical
-        }
-
-      } catch (err) {
-        console.error('❌ Error deleting appointment from Supabase:', err);
-        setError(err.message || 'Failed to delete appointment');
-        // Don't remove from local state if Supabase deletion failed
-        throw err; // Re-throw so UI can handle it
+        if (supabaseError) throw supabaseError;
       }
-    } else {
-      // Supabase not enabled - delete from local state only
-      console.log('⚠️ Supabase not enabled, deletion only from local state');
-      console.log('🔍 Supabase config check:', {
-        isConfigured: isSupabaseConfigured(),
-        supabaseEnabled,
-      });
-      setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
+      // If we get here, it's gone! No need to reload everything.
+    } catch (err) {
+      // 3. Revert: If the database says "No," put the data back
+      setAppointments(previousAppointments);
+      setError(err.message || "Failed to delete");
+      console.error("Deletion failed, state reverted.");
     }
   };
 
@@ -208,11 +132,13 @@ export const AppointmentsProvider = ({ children }) => {
     const appointmentAt = appointment.start; // Use start time as appointment_at
 
     if (!clientId) {
-      throw new Error('client_id is required. Please select an existing client.');
+      throw new Error(
+        "client_id is required. Please select an existing client.",
+      );
     }
 
     // Get client name for optimistic update (will be replaced with actual data)
-    const clientName = appointment.client || 'Unknown Client';
+    const clientName = appointment.client || "Unknown Client";
 
     const newAppointment = {
       ...appointment,
@@ -230,14 +156,15 @@ export const AppointmentsProvider = ({ children }) => {
       try {
         // Insert the appointment with the client_id
         const { data, error: supabaseError } = await supabase
-          .from('appointments')
+          .from("appointments")
           .insert({
             client_id: clientId,
             appointment_at: appointmentAt.toISOString(),
             confirmed: false, // Default to not confirmed
             reminder_sent: false, // Default to not sent
           })
-          .select(`
+          .select(
+            `
             apt_id,
             client_id,
             appointment_at,
@@ -246,7 +173,8 @@ export const AppointmentsProvider = ({ children }) => {
               name,
               phone
             )
-          `)
+          `,
+          )
           .single();
 
         if (supabaseError) {
@@ -270,28 +198,81 @@ export const AppointmentsProvider = ({ children }) => {
 
         // Replace optimistic update with actual data
         setAppointments((prev) =>
-          prev.map((apt) => (apt.id === newAppointment.id ? convertedAppointment : apt))
+          prev.map((apt) =>
+            apt.id === newAppointment.id ? convertedAppointment : apt,
+          ),
         );
       } catch (err) {
-        console.error('Error saving appointment to Supabase:', err);
-        setError(err.message || 'Failed to save appointment');
+        console.error("Error saving appointment to Supabase:", err);
+        setError(err.message || "Failed to save appointment");
         // Remove optimistic update on error
-        setAppointments((prev) => prev.filter((apt) => apt.id !== newAppointment.id));
+        setAppointments((prev) =>
+          prev.filter((apt) => apt.id !== newAppointment.id),
+        );
         throw err; // Re-throw so UI can handle it
       }
     }
   };
 
+
+  const updateAppointment = async (appointmentId, updates) => {
+  const previousAppointments = [...appointments];
+
+  // 1. UI Update (Instant)
+  setAppointments((prev) =>
+    prev.map((apt) => {
+      if (apt.id === appointmentId) {
+        const newDate = updates.start || apt.start;
+        return { ...apt, ...updates, appointment_at: newDate };
+      }
+      return apt;
+    })
+  );
+
+  try {
+    if (supabaseEnabled) {
+      // 2. Data Preparation
+      const isoString = updates.start 
+        ? new Date(updates.start).toISOString() 
+        : undefined;
+
+      const { data, error: supabaseError } = await supabase
+        .from("appointments")
+        .update({ 
+          appointment_at: isoString,
+          // Add any other fields from 'updates' here if needed, like 'notes'
+        })
+        .eq("apt_id", appointmentId) // Double check: Is your PK "apt_id"?
+        .select(); // This helps confirm if the row was actually found
+
+      if (supabaseError) throw supabaseError;
+      
+      // If data is empty, it means .eq() didn't find the row
+      if (!data || data.length === 0) {
+        console.error("⚠️ No row found with apt_id:", appointmentId);
+        throw new Error("Appointment not found in database.");
+      }
+      
+      console.log("✅ Supabase updated successfully");
+    }
+  } catch (err) {
+    // 3. Revert on failure
+    setAppointments(previousAppointments);
+    Alert.alert("Sync Error", "Could not save to cloud. Reverting to original time.");
+    console.error("Supabase Sync Failed:", err);
+  }
+};
+
   // Send SMS reminder for an appointment
   const sendReminder = async (appointmentId) => {
-    const { sendSMSReminder } = await import('../lib/smsService');
+    const { sendSMSReminder } = await import("../lib/smsService");
     const result = await sendSMSReminder(appointmentId);
-    
+
     if (result.success) {
       // Refresh appointments to get updated reminder_sent status
       await loadAppointments();
     }
-    
+
     return result;
   };
 
@@ -300,13 +281,14 @@ export const AppointmentsProvider = ({ children }) => {
       appointments,
       addAppointment,
       deleteAppointment,
+      updateAppointment,
       sendReminder,
       loading,
       error,
       supabaseEnabled,
       refreshAppointments: loadAppointments,
     }),
-    [appointments, loading, error, supabaseEnabled]
+    [appointments, loading, error, supabaseEnabled], 
   );
 
   return (
@@ -318,6 +300,7 @@ export const AppointmentsProvider = ({ children }) => {
 
 export const useAppointments = () => {
   const ctx = useContext(AppointmentsContext);
-  if (!ctx) throw new Error("useAppointments must be used within AppointmentsProvider");
+  if (!ctx)
+    throw new Error("useAppointments must be used within AppointmentsProvider");
   return ctx;
 };

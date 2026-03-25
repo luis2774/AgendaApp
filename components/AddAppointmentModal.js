@@ -1,19 +1,39 @@
 //this is the pop up that appears when user clicks on a calendar day to add a new appointment
 
-
 import React, { useState, useEffect } from "react";
-import { Modal, View, Text, Button, Alert, StyleSheet, Platform, TouchableOpacity, FlatList, ScrollView } from "react-native";
+import {
+  Modal,
+  View,
+  Text,
+  Button,
+  Alert,
+  StyleSheet,
+  Platform,
+  TouchableOpacity,
+  FlatList,
+  ScrollView,
+} from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAppointments } from "../context/AppointmentsContext";
 import { useClients } from "../context/ClientsContext";
+import { useLanguage } from "../context/LanguageContext";
+import { getT } from "../i18n/translations";
 
-export default function AddAppointmentModal({ visible, onClose, selectedDate }) {
+export default function AddAppointmentModal({
+  visible,
+  onClose,
+  selectedDate,
+}) {
   const { addAppointment } = useAppointments();
   const { clients } = useClients();
+  const { language } = useLanguage();
+    const t = (key) => getT(key, language);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [showClientPicker, setShowClientPicker] = useState(false);
-  
+  //Make the default duration two hours
+  const [duration, setDuration] = useState(2);
+
   // Initialize with selectedDate or today, default to 9 AM
   const getInitialDate = () => {
     const date = selectedDate ? new Date(selectedDate) : new Date();
@@ -53,19 +73,31 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
 
     // Combine selectedDate with the time picker value
     const appointmentDate = new Date(selectedDate || new Date());
-    appointmentDate.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+    appointmentDate.setHours(
+      startTime.getHours(),
+      startTime.getMinutes(),
+      0,
+      0,
+    );
+
+    const endTime = new Date(appointmentDate);
+    endTime.setHours(endTime.getHours() + duration);
 
     try {
       await addAppointment({
         client_id: selectedClientId,
         client: selectedClient?.name || "Unknown Client",
         start: appointmentDate,
+        end: endTime,
+        duration: duration,
       });
 
       // Reset fields and close modal
       setSelectedClientId(null);
-      const resetDate = getInitialDate();
-      setStartTime(resetDate);
+      //const resetDate = getInitialDate();
+      //setStartTime(resetDate);
+      //make the default two when reset
+      setDuration(2);
       onClose();
     } catch (error) {
       Alert.alert("Error", error.message || "Failed to save appointment.");
@@ -76,66 +108,99 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <ScrollView showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Add Appointment</Text>
-            
-            <Text style={styles.label}>Select Client *</Text>
-            <TouchableOpacity
-              style={styles.clientPicker}
-              onPress={() => setShowClientPicker(!showClientPicker)}
-            >
-              <Text style={[styles.clientPickerText, !selectedClient && styles.placeholder]}>
-                {selectedClient ? selectedClient.name : "Select a client..."}
-              </Text>
-              <Text style={styles.chevron}>{showClientPicker ? "▲" : "▼"}</Text>
-            </TouchableOpacity>
+          <Text style={styles.title}>{t("addAppointment")}</Text>
 
-            {showClientPicker && (
-              <View style={styles.clientList}>
-                {clients.length === 0 ? (
-                  <View style={styles.emptyClientList}>
-                    <Text style={styles.emptyClientText}>No clients available</Text>
-                    <Text style={styles.emptyClientSubtext}>
-                      Go to Clients screen to add clients first
-                    </Text>
-                  </View>
-                ) : (
-                  <FlatList
-                    data={clients}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
+          <Text style={styles.label}>{t("selectClient")}</Text>
+          <TouchableOpacity
+            style={styles.clientPicker}
+            onPress={() => setShowClientPicker(!showClientPicker)}
+          >
+            <Text
+              style={[
+                styles.clientPickerText,
+                !selectedClient && styles.placeholder,
+              ]}
+            >
+              {selectedClient ? selectedClient.name : t("selectClient")}
+            </Text>
+            <Text style={styles.chevron}>{showClientPicker ? "▲" : "▼"}</Text>
+          </TouchableOpacity>
+
+          {showClientPicker && (
+            <View style={styles.clientList}>
+              {clients.length === 0 ? (
+                <View style={styles.emptyClientList}>
+                  <Text style={styles.emptyClientText}>
+                    No clients available
+                  </Text>
+                  <Text style={styles.emptyClientSubtext}>
+                    Go to Clients screen to add clients first
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={clients}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.clientOption,
+                        selectedClientId === item.id &&
+                          styles.clientOptionSelected,
+                      ]}
+                      onPress={() => {
+                        setSelectedClientId(item.id);
+                        setShowClientPicker(false);
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.clientOption,
-                          selectedClientId === item.id && styles.clientOptionSelected,
+                          styles.clientOptionText,
+                          selectedClientId === item.id &&
+                            styles.clientOptionTextSelected,
                         ]}
-                        onPress={() => {
-                          setSelectedClientId(item.id);
-                          setShowClientPicker(false);
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.clientOptionText,
-                            selectedClientId === item.id && styles.clientOptionTextSelected,
-                          ]}
-                        >
-                          {item.name}
+                        {item.name}
+                      </Text>
+                      {item.phone && (
+                        <Text style={styles.clientOptionPhone}>
+                          {item.phone}
                         </Text>
-                        {item.phone && (
-                          <Text style={styles.clientOptionPhone}>{item.phone}</Text>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                    style={styles.clientListInner}
-                    nestedScrollEnabled
-                  />
-                )}
+                      )}
+                    </TouchableOpacity>
+                  )}
+                  style={styles.clientListInner}
+                  nestedScrollEnabled
+                />
+              )}
+            </View>
+          )}
+          <View style={styles.durationSection}>
+            <Text style={styles.label}>{t("duration")}</Text>
+            <View style={styles.stepperContainer}>
+              <TouchableOpacity
+                style={styles.stepButton}
+                onPress={() => setDuration(Math.max(1, duration - 1))}
+              >
+                <Text style={styles.stepButtonText}>-</Text>
+              </TouchableOpacity>
+
+              <View style={styles.durationDisplay}>
+                <Text style={styles.durationValue}>{duration}</Text>
+                <Text style={styles.durationUnit}>hrs</Text>
               </View>
-            )}
+
+              <TouchableOpacity
+                style={styles.stepButton}
+                onPress={() => setDuration(Math.min(8, duration + 1))}
+              >
+                <Text style={styles.stepButtonText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <View style={styles.timePickerContainer}>
-            <Text style={styles.label}>Time</Text>
+            <Text style={styles.label}>{t("time")}</Text>
             <View style={styles.pickerWrapper}>
               <DateTimePicker
                 value={startTime}
@@ -152,10 +217,15 @@ export default function AddAppointmentModal({ visible, onClose, selectedDate }) 
             </View>
           </View>
 
-            <Button title="Save" onPress={handleSave} />
-            <View style={{ height: 10 }} />
-            <Button title="Cancel" color="red" onPress={onClose} />
-          </ScrollView>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save Appointment</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -249,7 +319,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   timePickerContainer: {
-    
     marginBottom: 16,
   },
   pickerWrapper: {
@@ -264,5 +333,75 @@ const styles = StyleSheet.create({
   },
   picker: {
     width: Platform.OS === "ios" ? "100%" : "auto",
+  },
+
+  buttonContainer: {
+    gap: 12,
+  },
+  saveButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#ef4444",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  durationSection: {
+    marginBottom: 20,
+  },
+  stepperContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8fafc",
+    borderRadius: 12,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  stepButton: {
+    width: 44,
+    height: 44,
+    backgroundColor: "#6366f1",
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#6366f1",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  stepButtonText: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "600",
+  },
+  durationDisplay: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginHorizontal: 30,
+  },
+  durationValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#1e293b",
+  },
+  durationUnit: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748b",
+    marginLeft: 4,
   },
 });

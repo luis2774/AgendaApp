@@ -1,171 +1,115 @@
-/**
- * AppointmentDetails.js
- * 
- * This screen displays detailed information about a specific appointment.
- * 
- * Features:
- * - Shows client name, date, and time
- * - Displays appointment notes (if any)
- * - Allows deletion of the appointment with confirmation
- * - Automatically navigates back after successful deletion
- */
-
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform, Button } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAppointments } from "../context/AppointmentsContext";
 
 export default function AppointmentDetailScreen({ route, navigation }) {
-  // Get appointment data from navigation params (passed from calendar screen)
   const { event: serializedEvent } = route.params;
   
-  // Convert ISO strings back to Date objects (React Navigation serializes Dates as strings)
-  const event = {
-    ...serializedEvent,
-    start: new Date(serializedEvent.start),
-    end: serializedEvent.end ? new Date(serializedEvent.end) : null,
-    appointment_at: serializedEvent.appointment_at ? new Date(serializedEvent.appointment_at) : null,
-    reminder_at: serializedEvent.reminder_at ? new Date(serializedEvent.reminder_at) : null,
-  };
-  
-  // Get functions from appointments context
-  const { deleteAppointment, sendReminder } = useAppointments();
-  
-  // Loading states to prevent multiple operations
+  // Local state for rescheduling
+  const [showPicker, setShowPicker] = useState(false);
+  const [newTime, setNewTime] = useState(new Date(serializedEvent.start));
+  const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSendingReminder, setIsSendingReminder] = useState(false);
 
-  /**
-   * handleSendReminder: Sends SMS reminder for the appointment
-   * - Validates that client has phone number
-   * - Checks if reminder already sent
-   * - Sends SMS and refreshes appointment data
-   */
-  const handleSendReminder = async () => {
-    // Check if client has phone number (need to get from appointments context)
-    if (!event.client_id) {
-      Alert.alert("Error", "Unable to send reminder. Client information not available.");
-      return;
-    }
+  const { deleteAppointment, sendReminder, updateAppointment } = useAppointments();
 
-    if (event.reminder_sent) {
-      Alert.alert("Already Sent", "SMS reminder has already been sent for this appointment.");
-      return;
-    }
+  const event = {
+    ...serializedEvent,
+    start: new Date(serializedEvent.start),
+  };
 
-    setIsSendingReminder(true);
+  const handleReschedule = async () => {
+    setIsUpdating(true);
     try {
-      const result = await sendReminder(event.id);
-      if (result.success) {
-        Alert.alert("Success", "SMS reminder sent successfully!");
-      } else {
-        Alert.alert("Error", result.message || "Failed to send reminder. Please check that the client has a valid phone number.");
-      }
+      await updateAppointment(event.id, { 
+        start: newTime,
+        // If your DB uses appointment_at, update that too:
+        appointment_at: newTime.toISOString() 
+      });
+      Alert.alert("Success", "Appointment rescheduled!");
+      setShowPicker(false);
+      navigation.goBack(); 
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to send reminder.");
+      Alert.alert("Error", "Could not update appointment.");
     } finally {
-      setIsSendingReminder(false);
+      setIsUpdating(false);
     }
   };
 
-  /**
-   * handleDelete: Shows confirmation dialog and deletes appointment if confirmed
-   * - Shows alert with appointment details
-   * - On confirm: Deletes appointment and navigates back
-   * - On cancel: Does nothing
-   */
   const handleDelete = () => {
-    Alert.alert(
-      "Delete Appointment",
-      `Are you sure you want to delete the appointment with ${event.client}?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
+    Alert.alert("Delete", `Delete appointment for ${event.client}?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          setIsDeleting(true);
+          await deleteAppointment(event.id);
+          navigation.goBack();
         },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setIsDeleting(true);
-              await deleteAppointment(event.id);
-              Alert.alert("Success", "Appointment deleted successfully.");
-              navigation.goBack();
-            } catch (error) {
-              Alert.alert("Error", error.message || "Failed to delete appointment.");
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+      },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* Appointment Details Card */}
         <View style={styles.card}>
-          {/* Client Name: Main title of the appointment */}
           <Text style={styles.title}>{event.client}</Text>
           
-          {/* Appointment Date: Full date with weekday */}
-          <Text style={styles.info}>
-            {event.start.toLocaleDateString([], {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </Text>
-          
-          {/* Appointment Time: Start time in 12-hour format */}
-          <Text style={styles.info}>
-            {event.start.toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-            })}
-          </Text>
-          
-          {/* Notes: Optional appointment notes (only shown if they exist) */}
-          {event.notes && <Text style={styles.info}>Notes: {event.notes}</Text>}
-          
-          {/* Reminder Status: Show if reminder has been sent */}
-          {event.reminder_sent && (
-            <View style={styles.reminderStatus}>
-              <Text style={styles.reminderStatusText}>✓ SMS Reminder Sent</Text>
+          <View style={styles.dateTimeContainer}>
+             <Text style={styles.info}>
+               {event.start.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}
+             </Text>
+             <Text style={styles.info}>
+               {event.start.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true })}
+             </Text>
+          </View>
+
+          {/* RESCHEDULE SECTION */}
+          {!showPicker ? (
+            <TouchableOpacity style={styles.rescheduleButton} onPress={() => setShowPicker(true)}>
+              <Text style={styles.rescheduleButtonText}>Reschedule Appointment</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.pickerWrapper}>
+              <Text style={styles.pickerLabel}>Select New Date & Time</Text>
+              <DateTimePicker
+                value={newTime}
+                mode="datetime"
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                textColor="#000000" // Fixes the invisible text bug
+                onChange={(e, date) => date && setNewTime(date)}
+                style={styles.picker}
+              />
+              <View style={styles.pickerActions}>
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleReschedule} disabled={isUpdating}>
+                  <Text style={styles.confirmBtnText}>{isUpdating ? "Saving..." : "Confirm Changes"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowPicker(false)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
-          
-          {/* Send Reminder Button: Allows user to send SMS reminder */}
-          <TouchableOpacity
-            style={[
-              styles.reminderButton, 
-              (event.reminder_sent || isSendingReminder) && styles.reminderButtonDisabled
-            ]}
-            onPress={handleSendReminder}
-            disabled={event.reminder_sent || isSendingReminder}
+
+          <View style={styles.divider} />
+
+          {/* REMINDER & DELETE BUTTONS */}
+          <TouchableOpacity 
+            style={[styles.reminderButton, event.reminder_sent && styles.disabled]}
+            onPress={() => !event.reminder_sent && sendReminder(event.id)}
           >
             <Text style={styles.reminderButtonText}>
-              {event.reminder_sent 
-                ? "Reminder Sent ✓" 
-                : isSendingReminder 
-                ? "Sending..." 
-                : "Send SMS Reminder (WIP)"}
+              {event.reminder_sent ? "Reminder Sent ✓" : "Send SMS Reminder"}
             </Text>
           </TouchableOpacity>
-          
-          {/* Delete Button: Allows user to cancel/delete the appointment */}
-          <TouchableOpacity
-            style={[styles.deleteButton, isDeleting && styles.deleteButtonDisabled]}
-            onPress={handleDelete}
-            disabled={isDeleting} // Disable button while deletion is in progress
-          >
-            <Text style={styles.deleteButtonText}>
-              {isDeleting ? "Deleting..." : "Delete Appointment"}
-            </Text>
+
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Text style={styles.deleteButtonText}>Delete Appointment</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -174,77 +118,42 @@ export default function AppointmentDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
+  safeArea: { flex: 1, backgroundColor: "#f8fafc" },
+  container: { flex: 1 },
+  content: { padding: 20 },
+  card: { backgroundColor: "#fff", borderRadius: 24, padding: 24, elevation: 4, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 10 },
+  title: { fontSize: 28, fontWeight: "700", color: "#1e293b", marginBottom: 15 },
+  dateTimeContainer: { marginBottom: 20 },
+  info: { fontSize: 18, color: "#64748b", marginBottom: 4 },
+  
+  rescheduleButton: {
+    backgroundColor: "#eff6ff",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#bfdbfe",
+  },
+  rescheduleButtonText: { color: "#2563eb", fontWeight: "600", fontSize: 16 },
+
+  pickerWrapper: {
     backgroundColor: "#f8fafc",
+    padding: 15,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
   },
-  container: { flex: 1, backgroundColor: "#f8fafc" },
-  content: { padding: 24, paddingBottom: 40 },
-  card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 20,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  title: { 
-    fontSize: 32, 
-    fontWeight: "500", 
-    marginBottom: 24,
-    color: "#1e293b",
-    letterSpacing: -0.5,
-  },
-  info: { 
-    fontSize: 17, 
-    marginBottom: 16,
-    color: "#64748b",
-    fontWeight: "400",
-    lineHeight: 24,
-  },
-  reminderStatus: {
-    backgroundColor: "#f0fdf4",
-    borderRadius: 12,
-    padding: 12,
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  reminderStatusText: {
-    color: "#166534",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-  reminderButton: {
-    backgroundColor: "#e0e7ff",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  reminderButtonDisabled: {
-    opacity: 0.5,
-  },
-  reminderButtonText: {
-    color: "#6366f1",
-    fontSize: 17,
-    fontWeight: "500",
-  },
-  deleteButton: {
-    backgroundColor: "#fef2f2",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  deleteButtonDisabled: {
-    opacity: 0.5,
-  },
-  deleteButtonText: {
-    color: "#ef4444",
-    fontSize: 17,
-    fontWeight: "500",
-  },
+  pickerLabel: { textAlign: "center", fontWeight: "600", color: "#475569", marginBottom: 10 },
+  picker: { height: 150 },
+  pickerActions: { marginTop: 10, alignItems: "center" },
+  confirmBtn: { backgroundColor: "#2563eb", padding: 12, borderRadius: 10, width: "100%", alignItems: "center", marginBottom: 10 },
+  confirmBtnText: { color: "#fff", fontWeight: "700" },
+  cancelText: { color: "#ef4444", fontWeight: "600" },
+
+  divider: { height: 1, backgroundColor: "#e2e8f0", marginVertical: 25 },
+  reminderButton: { backgroundColor: "#6366f1", padding: 16, borderRadius: 12, alignItems: "center", marginBottom: 12 },
+  reminderButtonText: { color: "#fff", fontWeight: "600", fontSize: 16 },
+  deleteButton: { padding: 16, alignItems: "center" },
+  deleteButtonText: { color: "#ef4444", fontWeight: "600", fontSize: 16 },
+  disabled: { opacity: 0.5 }
 });
