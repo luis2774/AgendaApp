@@ -1,12 +1,9 @@
-# AgendaTest
+# Agenda App
+
 
 A React Native appointment scheduling app built with Expo and Supabase.
 
 ## Getting Started
-
-### Setting Up on a New PC
-
-See [SETUP_NEW_PC.md](./SETUP_NEW_PC.md) for complete setup instructions.
 
 **Quick Start:**
 1. Clone/copy the project
@@ -33,7 +30,7 @@ Get these from: Supabase Dashboard > Settings > API
 - 👥 Client management
 - 🔔 SMS reminders (via Supabase Edge Functions)
 - 💾 Supabase database integration
-- 📱 iOS and Android support
+- 📱 iOS support
 
 ---
 
@@ -42,7 +39,7 @@ Get these from: Supabase Dashboard > Settings > API
 - **React Native** with **Expo**
 - **Supabase** (Database & Backend)
 - **React Navigation** (Routing)
-- **@react-native-community/datetimepicker** (Time pickers)
+-  **Twilio API** (SMS reminders)
 
 ---
 
@@ -60,8 +57,7 @@ AgendaTest/
 
 ---
 
-For detailed setup instructions, see [SETUP_NEW_PC.md](./SETUP_NEW_PC.md)
+
 
 //currently no secrets in the database for twilio so will need to add them later
 //still trying to get twilio to work and get the number verified and then get the reminder to send
-//vonage did not work
