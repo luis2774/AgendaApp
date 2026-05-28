@@ -24,11 +24,15 @@ export default {
   viewDetails: "Ver Detalles",
   viewInCalendar: "Ver en Calendario",
   in: "en",
+
   //Calendar screen
   prev: "← Previo",
   next: "Siguiente →",
   month: "Mes",
   week: "Semana",
+  spaceAvailable: "Lugar disponible",
+  hours: "Horas",
+  calendar: "Calendario",
 
   //Clients screen
   singleClient: "Un cliente",
@@ -52,4 +56,10 @@ export default {
   duration: " Duración (Horas)",
   time: "Tiempo",
   saveAppointment: "Salvar",
+
+  //Appointment details screen
+  appointmentDetails: "Detalles de la cita",
+  rescheduleAppointment: "modificar cita",
+  sendSMSReminder: "Mandar Recordatorio por SMS",
+  selectNewDateTime: "Selecciona nueva fecha y hora",
 };

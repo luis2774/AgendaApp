@@ -27,7 +27,7 @@ export default function AddAppointmentModal({
   const { addAppointment } = useAppointments();
   const { clients } = useClients();
   const { language } = useLanguage();
-    const t = (key) => getT(key, language);
+  const t = (key) => getT(key, language);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [showClientPicker, setShowClientPicker] = useState(false);

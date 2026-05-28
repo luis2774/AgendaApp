@@ -1,16 +1,16 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import HomeScreen from './screens/HomeScreen';
-import CalendarScreen from './screens/CalendarScreen';
-import ClientsScreen from './screens/Clients';
-import SettingsScreen from './screens/Settings';
-import AppointmentDetails from './screens/AppointmentDetails';
-import { AppointmentsProvider } from './context/AppointmentsContext';
-import { ClientsProvider } from './context/ClientsContext';
-import { LanguageProvider } from './context/LanguageContext';
-
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import HomeScreen from "./screens/HomeScreen";
+import CalendarScreen from "./screens/CalendarScreen";
+import ClientsScreen from "./screens/Clients";
+import SettingsScreen from "./screens/Settings";
+import AppointmentDetails from "./screens/AppointmentDetails";
+import { AppointmentsProvider } from "./context/AppointmentsContext";
+import { ClientsProvider } from "./context/ClientsContext";
+import { LanguageProvider } from "./context/LanguageContext";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -23,45 +23,44 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#2563eb',
-        tabBarInactiveTintColor: '#6b7280',
+        tabBarActiveTintColor: "#2563eb",
+        tabBarInactiveTintColor: "#6b7280",
         tabBarStyle: {
           borderTopWidth: 1,
-          borderTopColor: '#e5e7eb',
+          borderTopColor: "#e5e7eb",
           paddingBottom: 5,
           paddingTop: 5,
-          height: 60,
         },
       }}
     >
-      <Tab.Screen 
-        name="Home" 
+      <Tab.Screen
+        name="Home"
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: "Home",
         }}
       />
-      <Tab.Screen 
-        name="Calendar" 
+      <Tab.Screen
+        name="Calendar"
         component={CalendarScreen}
         options={{
-          tabBarLabel: 'Calendar',
+          tabBarLabel: "Calendar",
         }}
       />
-      <Tab.Screen 
-        name="Clients" 
+      <Tab.Screen
+        name="Clients"
         component={ClientsScreen}
         options={{
-          tabBarLabel: 'Clients',
+          tabBarLabel: "Clients",
         }}
       />
-      <Tab.Screen 
+      <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarLabel: 'Settings',
+          tabBarLabel: "Settings",
         }}
-        />
+      />
     </Tab.Navigator>
   );
 }
@@ -70,32 +69,28 @@ function MainTabs() {
 function RootNavigator() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="MainTabs" 
+      <Stack.Screen
+        name="back"
         component={MainTabs}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="AppointmentDetail" 
-        component={AppointmentDetails}
-        options={{ 
-          title: 'Appointment Details'
-        }}
-      />
+      <Stack.Screen name="AppointmentDetail" component={AppointmentDetails} />
     </Stack.Navigator>
   );
 }
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <ClientsProvider>
-        <AppointmentsProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-        </AppointmentsProvider>
-      </ClientsProvider>
-    </LanguageProvider>
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <ClientsProvider>
+          <AppointmentsProvider>
+            <NavigationContainer>
+              <RootNavigator />
+            </NavigationContainer>
+          </AppointmentsProvider>
+        </ClientsProvider>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 }

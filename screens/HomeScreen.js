@@ -8,13 +8,14 @@ import {
   TouchableOpacity,
   Pressable,
 } from "react-native";
-import { formatDate, formatTime } from "./helpers/timeFormat";
+import { formatDate, formatTime, getTimeUntil } from "./helpers/timeFormat";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
 import { useLanguage } from "../context/LanguageContext";
 import { getT } from "../i18n/translations";
 import { getAvailableSlots } from "./helpers/slotFinder";
+import * as Haptics from "expo-haptics";
 
 export default function HomeScreen({ navigation }) {
   const { language } = useLanguage();
@@ -69,14 +70,9 @@ export default function HomeScreen({ navigation }) {
     };
   }, [appointments, openSlots]);
 
-  const getTimeUntil = (date) => {
-    const now = new Date();
-    const diff = date.getTime() - now.getTime();
-    const mins = Math.floor(diff / 60000);
-    const hrs = Math.floor(mins / 60);
-    if (hrs > 24) return `${Math.floor(hrs / 24)}d`;
-    if (hrs > 0) return `${hrs}h ${mins % 60}m`;
-    return `${mins}m`;
+  const handleBook = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setModalVisible(true);
   };
 
   return (
@@ -227,7 +223,7 @@ export default function HomeScreen({ navigation }) {
                 <View>
                   <Text style={styles.slotDay}>
                     {formatDate(slot.start, language, {
-                      month:"short",
+                      month: "short",
                       weekday: "short",
                       day: "numeric",
                     })}
