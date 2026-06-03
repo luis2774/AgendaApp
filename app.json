@@ -4,7 +4,7 @@
     "slug": "cleaning-agenda2",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/Logo.png",
+    "icon": "./assets/Logo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.Esmes.cleaningapp",
-      "icon": "./assets/Logo.png",
+      "icon": "./assets/Logo.jpg",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
