@@ -15,8 +15,10 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.Esmes.cleaningapp",
-      "icon": "./assets/Logo.png"
-
+      "icon": "./assets/Logo.png",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,6 +29,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "aa25e657-d06c-423b-874f-4b8282c9c1b3"
+      }
     }
   }
 }
