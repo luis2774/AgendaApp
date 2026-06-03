@@ -9,7 +9,10 @@
       "distribution": "internal"
     },
     "sideload": {
-      "distribution": "simulator"
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     },
     "production": {
       "autoIncrement": true
