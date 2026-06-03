@@ -10,10 +10,7 @@
     },
     "sideload": {
       "distribution": "internal",
-      "withoutCredentials": true,
-      "ios": {
-        "simulator": true
-      }
+      "withoutCredentials": true
     },
     "production": {
       "autoIncrement": true
