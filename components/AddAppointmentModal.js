@@ -1,5 +1,3 @@
-//this is the pop up that appears when user clicks on a calendar day to add a new appointment
-
 import React, { useState, useEffect } from "react";
 import {
   Modal,
@@ -16,8 +14,6 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAppointments } from "../context/AppointmentsContext";
 import { useClients } from "../context/ClientsContext";
-import { useLanguage } from "../context/LanguageContext";
-import { getT } from "../i18n/translations";
 
 export default function AddAppointmentModal({
   visible,
@@ -26,20 +22,15 @@ export default function AddAppointmentModal({
 }) {
   const { addAppointment } = useAppointments();
   const { clients } = useClients();
-  const { language } = useLanguage();
-  const t = (key) => getT(key, language);
 
   const [selectedClientId, setSelectedClientId] = useState(null);
   const [showClientPicker, setShowClientPicker] = useState(false);
-  //Make the default duration two hours
   const [duration, setDuration] = useState(2);
 
-  // Initialize with selectedDate or today, default to 9 AM
   const getInitialDate = () => {
     const date = selectedDate ? new Date(selectedDate) : new Date();
-    // If selectedDate has a specific time, preserve it; otherwise default to 9 AM
     if (selectedDate && date.getHours() !== 0 && date.getMinutes() !== 0) {
-      return date; // Use the actual time from selectedDate
+      return date;
     }
     date.setHours(9, 0, 0, 0);
     return date;
@@ -47,15 +38,12 @@ export default function AddAppointmentModal({
 
   const [startTime, setStartTime] = useState(getInitialDate());
 
-  // Update startTime when selectedDate changes
   useEffect(() => {
     if (selectedDate) {
       const date = new Date(selectedDate);
-      // If the date has a specific time (not midnight), use it
       if (date.getHours() !== 0 || date.getMinutes() !== 0) {
         setStartTime(date);
       } else {
-        // Otherwise default to 9 AM
         const start = new Date(date);
         start.setHours(9, 0, 0, 0);
         setStartTime(start);
@@ -67,11 +55,10 @@ export default function AddAppointmentModal({
 
   const handleSave = async () => {
     if (!selectedClientId) {
-      Alert.alert("Missing client", "Please select a client.");
+      Alert.alert("Falta Cliente", "Por favor selecciona un cliente.");
       return;
     }
 
-    // Combine selectedDate with the time picker value
     const appointmentDate = new Date(selectedDate || new Date());
     appointmentDate.setHours(
       startTime.getHours(),
@@ -86,21 +73,17 @@ export default function AddAppointmentModal({
     try {
       await addAppointment({
         client_id: selectedClientId,
-        client: selectedClient?.name || "Unknown Client",
+        client: selectedClient?.name || "Cliente Desconocido",
         start: appointmentDate,
         end: endTime,
         duration: duration,
       });
 
-      // Reset fields and close modal
       setSelectedClientId(null);
-      //const resetDate = getInitialDate();
-      //setStartTime(resetDate);
-      //make the default two when reset
       setDuration(2);
       onClose();
     } catch (error) {
-      Alert.alert("Error", error.message || "Failed to save appointment.");
+      Alert.alert("Error", error.message || "No se pudo guardar la cita.");
     }
   };
 
@@ -108,9 +91,9 @@ export default function AddAppointmentModal({
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
-          <Text style={styles.title}>{t("addAppointment")}</Text>
+          <Text style={styles.title}>Agregar Cita</Text>
 
-          <Text style={styles.label}>{t("selectClient")}</Text>
+          <Text style={styles.label}>Seleccionar Cliente</Text>
           <TouchableOpacity
             style={styles.clientPicker}
             onPress={() => setShowClientPicker(!showClientPicker)}
@@ -121,7 +104,7 @@ export default function AddAppointmentModal({
                 !selectedClient && styles.placeholder,
               ]}
             >
-              {selectedClient ? selectedClient.name : t("selectClient")}
+              {selectedClient ? selectedClient.name : "Seleccionar Cliente"}
             </Text>
             <Text style={styles.chevron}>{showClientPicker ? "▲" : "▼"}</Text>
           </TouchableOpacity>
@@ -131,10 +114,10 @@ export default function AddAppointmentModal({
               {clients.length === 0 ? (
                 <View style={styles.emptyClientList}>
                   <Text style={styles.emptyClientText}>
-                    No clients available
+                    No hay clientes disponibles
                   </Text>
                   <Text style={styles.emptyClientSubtext}>
-                    Go to Clients screen to add clients first
+                    Primero agrega clientes en la pantalla de Clientes
                   </Text>
                 </View>
               ) : (
@@ -176,7 +159,7 @@ export default function AddAppointmentModal({
             </View>
           )}
           <View style={styles.durationSection}>
-            <Text style={styles.label}>{t("duration")}</Text>
+            <Text style={styles.label}>Duración (Horas)</Text>
             <View style={styles.stepperContainer}>
               <TouchableOpacity
                 style={styles.stepButton}
@@ -200,7 +183,7 @@ export default function AddAppointmentModal({
           </View>
 
           <View style={styles.timePickerContainer}>
-            <Text style={styles.label}>{t("time")}</Text>
+            <Text style={styles.label}>Hora</Text>
             <View style={styles.pickerWrapper}>
               <DateTimePicker
                 value={startTime}
@@ -219,11 +202,11 @@ export default function AddAppointmentModal({
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Save Appointment</Text>
+              <Text style={styles.saveButtonText}>Guardar Cita</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -334,7 +317,6 @@ const styles = StyleSheet.create({
   picker: {
     width: Platform.OS === "ios" ? "100%" : "auto",
   },
-
   buttonContainer: {
     gap: 12,
   },

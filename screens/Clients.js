@@ -93,7 +93,7 @@ export default function ClientsScreen() {
    */
   const handleSave = async () => {
     if (!clientName.trim()) {
-      Alert.alert("Missing name", "Please enter a client name.");
+      Alert.alert("No hay nombre", "Ingresa el nombre del cliente.");
       return;
     }
 
@@ -103,13 +103,13 @@ export default function ClientsScreen() {
           name: clientName.trim(),
           phone: clientPhone.trim(),
         });
-        Alert.alert("Success", "Client updated successfully.");
+        Alert.alert("Exito", "Cliente actualizado exitosamente.");
       } else {
         await addClient({
           name: clientName.trim(),
           phone: clientPhone.trim(),
         });
-        Alert.alert("Success", "Client added successfully.");
+        Alert.alert("Exito", "Cliente agregado exitosamente.");
       }
       setModalVisible(false);
       setClientName("");
@@ -140,8 +140,8 @@ export default function ClientsScreen() {
 
     // Confirmation dialog before deletion
     Alert.alert(
-      "Delete Client",
-      `Are you sure you want to delete ${client.name}?`,
+      "Borrar Cliente",
+      `Estas seguro que quieres borrar ${client.name}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -150,9 +150,9 @@ export default function ClientsScreen() {
           onPress: async () => {
             try {
               await deleteClient(client.id);
-              Alert.alert("Success", "Client deleted successfully.");
+              Alert.alert("Exito", "Cliente eliminado exitosamente.");
             } catch (error) {
-              Alert.alert("Error", error.message || "Failed to delete client.");
+              Alert.alert("Error", error.message || "Error en borrar cliente.");
             }
           },
         },
@@ -161,25 +161,25 @@ export default function ClientsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* Header Section: Shows screen title and client count */}
         <View style={styles.header}>
-          <Text style={styles.title}>{t('clients')}</Text>
+          <Text style={styles.title}>Clientes</Text>
           <Text style={styles.subtitle}>
-            {clients.length} {clients.length === 1 ? t('singleClient') : t('clients')}
+            {clients.length} {clients.length === 1 ? "cliente" : "clientes"}
           </Text>
         </View>
 
         {/* Add New Client Button: Opens modal to create a new client */}
         <TouchableOpacity style={styles.addButton} onPress={handleAddClient}>
-          <Text style={styles.addButtonText}>{t('addClient')}</Text>
+          <Text style={styles.addButtonText}>Agregar Cliente</Text>
         </TouchableOpacity>
 
         {/* Loading State: Shows while fetching clients from database */}
         {loading ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{t('loadingClient')}</Text>
+            <Text style={styles.emptyText}>Cargando clientes...</Text>
           </View>
         ) : clients.length > 0 ? (
           /* Clients List: Displays all clients with their information */
@@ -204,14 +204,14 @@ export default function ClientsScreen() {
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>
                         {appointmentCount}{" "}
-                        {appointmentCount === 1 ? "appointment" : "appointments"}
+                        {appointmentCount === 1 ? "cita" : "citas"}
                       </Text>
                     </View>
                   </View>
                   {/* Last appointment date (only shown if client has appointments) */}
                   {lastAppointment && (
                     <Text style={styles.lastAppointment}>
-                      Last: {lastAppointment.toLocaleDateString()}
+                      Ultima cita: {lastAppointment.toLocaleDateString()}
                     </Text>
                   )}
                   {/* Action Buttons: Edit and Delete */}
@@ -220,13 +220,13 @@ export default function ClientsScreen() {
                       style={styles.editButton}
                       onPress={() => handleEditClient(client)}
                     >
-                      <Text style={styles.editButtonText}>{t('edit')}</Text>
+                      <Text style={styles.editButtonText}>Editar</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => handleDelete(client)}
                     >
-                      <Text style={styles.deleteButtonText}>{t('delete')}</Text>
+                      <Text style={styles.deleteButtonText}>Borrar</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -236,7 +236,7 @@ export default function ClientsScreen() {
         ) : (
           /* Empty State: Shown when no clients exist */
           <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{t('noClients')}</Text>
+            <Text style={styles.emptyText}>No hay clientes</Text>
             
           </View>
         )}
@@ -248,22 +248,22 @@ export default function ClientsScreen() {
           <View style={styles.modal}>
             {/* Modal Title: Changes based on whether adding or editing */}
             <Text style={styles.modalTitle}>
-              {editingClient ? "Edit Client" : t('addClient')}
+              {editingClient ? "Editar Cliente" : "Agregar Cliente"}
             </Text>
 
             {/* Client Name Input: Required field */}
-            <Text style={styles.label}>{t('nameClient')}</Text>
+            <Text style={styles.label}>Agregar Cliente</Text>
             <TextInput
-              placeholder={t('addclientName')}
+              placeholder="Agregar Cliente"
               value={clientName}
               onChangeText={setClientName}
               style={styles.input}
             />
 
             {/* Phone Number Input: Optional field */}
-            <Text style={styles.label}>{t('phoneNumber')}</Text>
+            <Text style={styles.label}>Numero de telefono</Text>
             <TextInput
-              placeholder={t('phoneNumber')}
+              placeholder="Numero de telefono"
               value={clientPhone}
               onChangeText={setClientPhone}
               style={styles.input}
@@ -273,12 +273,12 @@ export default function ClientsScreen() {
             {/* Modal Action Buttons: Save and Cancel */}
             <View style={styles.modalActions}>
               <Button
-                title={t('save')}
+                title="Guardar"
                 onPress={handleSave}
               />
               <View style={{ height: 10 }} />
               <Button
-                title={t('cancel')}
+                title="Cancelar"
                 color="red"
                 onPress={() => {
                   // Reset form and close modal
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   addButton: {
-    backgroundColor: "#3b82f6",
+    backgroundColor: "#712edd",
     borderRadius: 16,
     padding: 18,
     alignItems: "center",

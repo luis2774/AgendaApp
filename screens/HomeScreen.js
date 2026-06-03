@@ -12,27 +12,23 @@ import { formatDate, formatTime, getTimeUntil } from "./helpers/timeFormat";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAppointments } from "../context/AppointmentsContext";
 import AddAppointmentModal from "../components/AddAppointmentModal";
-import { useLanguage } from "../context/LanguageContext";
-import { getT } from "../i18n/translations";
 import { getAvailableSlots } from "./helpers/slotFinder";
 import * as Haptics from "expo-haptics";
 
 export default function HomeScreen({ navigation }) {
-  const { language } = useLanguage();
-  const t = (key) => getT(key, language);
   const { appointments } = useAppointments();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [slotsCollapsed, setSlotsCollapsed] = useState(false);
 
-  // Constants
+  // Constantes del Horario Laboral
   const DAYS_TO_SHOW = 7;
   const START_HOUR = 9;
   const END_HOUR = 16;
   const DURATION = 120;
 
-  // Optimized Logic using the helper we created
+  // Lógica de espacios libres optimizada
   const openSlots = useMemo(() => {
     return getAvailableSlots(appointments, {
       startHour: START_HOUR,
@@ -42,12 +38,14 @@ export default function HomeScreen({ navigation }) {
     });
   }, [appointments]);
 
+  // 🚀 Filter out completed items so they completely disappear from the home list
   const sortedAppointments = useMemo(() => {
-    return [...appointments].sort(
-      (a, b) => a.start.getTime() - b.start.getTime(),
-    );
+    return appointments
+      .filter((a) => !a.completed)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
   }, [appointments]);
 
+  // 🚀 Update stats layout calculations to completely ignore completed items
   const stats = useMemo(() => {
     const now = new Date();
     const todayStart = new Date();
@@ -55,17 +53,20 @@ export default function HomeScreen({ navigation }) {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const todayApts = appointments.filter(
+    // Filter down a baseline layout of non-completed items
+    const activeAppointments = appointments.filter((a) => !a.completed);
+
+    const todayApts = activeAppointments.filter(
       (a) => a.start >= todayStart && a.start <= todayEnd,
     );
-    const upcomingApts = appointments.filter((a) => a.start > now);
-    const confirmedCount = appointments.filter((a) => a.confirmed).length;
+    const upcomingApts = activeAppointments.filter((a) => a.start > now);
+    const confirmedCount = activeAppointments.filter((a) => a.confirmed).length;
 
     return {
       totalAvailable: openSlots.length,
       todayCount: todayApts.length,
       confirmed: confirmedCount,
-      pending: appointments.length - confirmedCount,
+      pending: activeAppointments.length - confirmedCount,
       next: upcomingApts.sort((a, b) => a.start - b.start)[0] || null,
     };
   }, [appointments, openSlots]);
@@ -81,11 +82,11 @@ export default function HomeScreen({ navigation }) {
         style={styles.container}
         contentContainerStyle={styles.content}
       >
-        {/* Header */}
+        {/* Encabezado */}
         <View style={styles.screenHeader}>
-          <Text style={styles.screenTitle}>{t("overview")}</Text>
+          <Text style={styles.screenTitle}>Resumen de Agenda</Text>
           <Text style={styles.screenSub}>
-            {formatDate(new Date(), language, {
+            {formatDate(new Date(), 'spanish', {
               weekday: "long",
               month: "short",
               day: "numeric",
@@ -93,27 +94,27 @@ export default function HomeScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* Stats Grid */}
+        {/* Métrica de Estados (Grid) */}
         <View style={styles.statsContainer}>
           <View style={[styles.statCard, styles.activeStat]}>
             <Text style={styles.statValue}>{stats.todayCount}</Text>
-            <Text style={styles.statLabel}>{t("today")}</Text>
+            <Text style={styles.statLabel}>HOY</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: "#6366f1" }]}>
               {stats.confirmed}
             </Text>
-            <Text style={styles.statLabel}>{t("confirmed")}</Text>
+            <Text style={styles.statLabel}>CONFIRMADOS</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: "#f59e0b" }]}>
               {stats.pending}
             </Text>
-            <Text style={styles.statLabel}>{t("pending")}</Text>
+            <Text style={styles.statLabel}>PENDIENTES</Text>
           </View>
         </View>
 
-        {/* Highlight Card */}
+        {/* Tarjeta Destacada de Próxima Cita */}
         {stats.next && (
           <Pressable
             style={({ pressed }) => [
@@ -128,27 +129,24 @@ export default function HomeScreen({ navigation }) {
           >
             <View style={styles.nextHeader}>
               <Text style={styles.nextAppointmentLabel}>
-                {t("nextAppointment")}
+                PRÓXIMA CITA
               </Text>
               <Text style={styles.nextTag}>
-                {t("in")} {getTimeUntil(stats.next.start)}
+                En {getTimeUntil(stats.next.start, 'spanish')}
               </Text>
             </View>
             <Text style={styles.nextAppointmentClient}>
               {stats.next.client}
             </Text>
             <Text style={styles.nextAppointmentTime}>
-              {formatTime(stats.next.start, language, {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {formatTime(stats.next.start, 'spanish')}
             </Text>
           </Pressable>
         )}
 
-        {/* Upcoming Section */}
+        {/* Sección de Citas Próximas */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t("aUpcoming")}</Text>
+          <Text style={styles.sectionTitle}>Citas Próximas</Text>
           {sortedAppointments.length > 0 ? (
             sortedAppointments.map((item, index) => (
               <View key={item.id} style={styles.timelineItem}>
@@ -177,7 +175,7 @@ export default function HomeScreen({ navigation }) {
                   <View style={styles.cardInfo}>
                     <Text style={styles.clientName}>{item.client}</Text>
                     <Text style={styles.timeText}>
-                      {formatTime(item.start, language)}
+                      {formatTime(item.start, 'spanish')}
                     </Text>
                   </View>
                   <View
@@ -194,19 +192,19 @@ export default function HomeScreen({ navigation }) {
               </View>
             ))
           ) : (
-            <Text style={styles.emptyText}>{t("noAppointments")}</Text>
+            <Text style={styles.emptyText}>No hay citas programadas</Text>
           )}
         </View>
 
-        {/* Available Slots Section */}
+        {/* Sección de Espacios Libres */}
         <View style={[styles.section, { marginTop: 30 }]}>
           <TouchableOpacity
             style={styles.collapseHeader}
             onPress={() => setSlotsCollapsed(!slotsCollapsed)}
           >
-            <Text style={styles.sectionTitle}>{t("apAvailable")}</Text>
+            <Text style={styles.sectionTitle}>Espacios Disponibles</Text>
             <Text style={styles.slotCount}>
-              {openSlots.length} {t("open")}
+              {openSlots.length} Libres
             </Text>
           </TouchableOpacity>
 
@@ -222,19 +220,19 @@ export default function HomeScreen({ navigation }) {
               >
                 <View>
                   <Text style={styles.slotDay}>
-                    {formatDate(slot.start, language, {
+                    {formatDate(slot.start, 'spanish', {
                       month: "short",
                       weekday: "short",
                       day: "numeric",
                     })}
                   </Text>
                   <Text style={styles.slotTimeRange}>
-                    {formatTime(slot.start, language)} -{" "}
-                    {formatTime(slot.end, language)}
+                    {formatTime(slot.start, 'spanish')} -{" "}
+                    {formatTime(slot.end, 'spanish')}
                   </Text>
                 </View>
                 <View style={styles.bookAction}>
-                  <Text style={styles.bookText}>{t("book")}</Text>
+                  <Text style={styles.bookText}>Reservar</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -258,7 +256,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 60 },
 
-  // Header
+  // Encabezado
   screenHeader: { marginBottom: 25 },
   screenTitle: {
     fontSize: 32,
@@ -268,7 +266,7 @@ const styles = StyleSheet.create({
   },
   screenSub: { fontSize: 16, color: "#64748b", marginTop: 4 },
 
-  // Stats Grid
+  // Grid de Métricas
   statsContainer: { flexDirection: "row", gap: 12, marginBottom: 25 },
   statCard: {
     flex: 1,
@@ -290,12 +288,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // Next Appointment Card
+  // Tarjeta de Próxima Cita
   nextAppointmentCard: {
-    backgroundColor: "#4f46e5",
+    backgroundColor: "#712edd",
     borderRadius: 24,
     padding: 24,
-    shadowColor: "#4f46e5",
+    shadowColor: "#712edd",
     shadowOpacity: 0.3,
     shadowRadius: 15,
     elevation: 8,
@@ -329,7 +327,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Timeline & Sections
+  // Línea de tiempo y Secciones
   section: { marginTop: 20 },
   sectionTitle: {
     fontSize: 20,
@@ -343,7 +341,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: "#6366f1",
+    backgroundColor: "#712edd",
     marginTop: 24,
     zIndex: 2,
     borderWidth: 2,
@@ -383,7 +381,7 @@ const styles = StyleSheet.create({
   badgeWait: { backgroundColor: "#fef3c7" },
   badgeText: { fontWeight: "800", fontSize: 14 },
 
-  // Slots
+  // Tarjetas de Espacios
   collapseHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
