@@ -56,6 +56,8 @@ export const AppointmentsProvider = ({ children }) => {
           reminder_sent,
           confirmed,
           created_at,
+          duration,
+          completed,
           clients:client_id (
             id,
             name,
@@ -84,6 +86,8 @@ export const AppointmentsProvider = ({ children }) => {
           reminder_at: apt.reminder_at ? new Date(apt.reminder_at) : null,
           reminder_sent: apt.reminder_sent || false,
           confirmed: apt.confirmed || false,
+          duration: apt.duration || 1, // Default to 1 hour if not provided
+          completed: apt.completed || false,
         };
       });
 
@@ -162,12 +166,16 @@ export const AppointmentsProvider = ({ children }) => {
             appointment_at: appointmentAt.toISOString(),
             confirmed: false, // Default to not confirmed
             reminder_sent: false, // Default to not sent
+            duration: appointment.duration || 1, // Default duration if not provided
+            completed: false, // Default to not completed
           })
           .select(
             `
             apt_id,
             client_id,
             appointment_at,
+            confirmed,
+            duration,
             clients:client_id (
               id,
               name,
@@ -214,54 +222,62 @@ export const AppointmentsProvider = ({ children }) => {
     }
   };
 
-
   const updateAppointment = async (appointmentId, updates) => {
-  const previousAppointments = [...appointments];
+    const previousAppointments = [...appointments];
 
-  // 1. UI Update (Instant)
-  setAppointments((prev) =>
-    prev.map((apt) => {
-      if (apt.id === appointmentId) {
-        const newDate = updates.start || apt.start;
-        return { ...apt, ...updates, appointment_at: newDate };
+    // 1. UI Update (Instant)
+    setAppointments((prev) =>
+      prev.map((apt) => {
+        if (apt.id === appointmentId) {
+          const newDate = updates.start || apt.start;
+          return { ...apt, ...updates, appointment_at: newDate };
+        }
+        return apt;
+      }),
+    );
+
+    try {
+      if (supabaseEnabled) {
+        // 2. Data Preparation
+        const isoString = updates.start
+          ? new Date(updates.start).toISOString()
+          : undefined;
+
+        // Extract properties to prevent passing client-side specific UI extensions (like start/end Date objects)
+        // while preserving database-level tracking values like 'completed', 'duration', etc.
+        const { start, end, ...dbFriendlyUpdates } = updates;
+
+        const payload = {
+          ...dbFriendlyUpdates, // 🚀 Dynamically includes { completed: true } or any other column updates
+        };
+
+        // Only attach appointment_at if a new start date was actually passed down
+        if (isoString) {
+          payload.appointment_at = isoString;
+        }
+
+        const { data, error: supabaseError } = await supabase
+          .from("appointments")
+          .update(payload) // 🔑 Pass the complete structured payload here
+          .eq("apt_id", appointmentId)
+          .select();
+
+        if (supabaseError) throw supabaseError;
+
+        if (!data || data.length === 0) {
+          console.error("⚠️ No row found with apt_id:", appointmentId);
+          throw new Error("Appointment not found in database.");
+        }
+
+        console.log("✅ Supabase updated successfully");
       }
-      return apt;
-    })
-  );
-
-  try {
-    if (supabaseEnabled) {
-      // 2. Data Preparation
-      const isoString = updates.start 
-        ? new Date(updates.start).toISOString() 
-        : undefined;
-
-      const { data, error: supabaseError } = await supabase
-        .from("appointments")
-        .update({ 
-          appointment_at: isoString,
-          // Add any other fields from 'updates' here if needed, like 'notes'
-        })
-        .eq("apt_id", appointmentId) // Double check: Is your PK "apt_id"?
-        .select(); // This helps confirm if the row was actually found
-
-      if (supabaseError) throw supabaseError;
-      
-      // If data is empty, it means .eq() didn't find the row
-      if (!data || data.length === 0) {
-        console.error("⚠️ No row found with apt_id:", appointmentId);
-        throw new Error("Appointment not found in database.");
-      }
-      
-      console.log("✅ Supabase updated successfully");
+    } catch (err) {
+      // 3. Revert on failure
+      setAppointments(previousAppointments);
+      Alert.alert("Sync Error", "Could not save to cloud. Reverting changes.");
+      console.error("Supabase Sync Failed:", err);
     }
-  } catch (err) {
-    // 3. Revert on failure
-    setAppointments(previousAppointments);
-    Alert.alert("Sync Error", "Could not save to cloud. Reverting to original time.");
-    console.error("Supabase Sync Failed:", err);
-  }
-};
+  };
 
   // Send SMS reminder for an appointment
   const sendReminder = async (appointmentId) => {
@@ -288,7 +304,7 @@ export const AppointmentsProvider = ({ children }) => {
       supabaseEnabled,
       refreshAppointments: loadAppointments,
     }),
-    [appointments, loading, error, supabaseEnabled], 
+    [appointments, loading, error, supabaseEnabled],
   );
 
   return (

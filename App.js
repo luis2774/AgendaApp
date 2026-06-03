@@ -11,6 +11,7 @@ import { AppointmentsProvider } from "./context/AppointmentsContext";
 import { ClientsProvider } from "./context/ClientsContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -21,17 +22,34 @@ const Tab = createBottomTabNavigator();
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: "#2563eb",
         tabBarInactiveTintColor: "#6b7280",
+
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName;
+
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Calendar") {
+            iconName = focused ? "calendar" : "calendar-outline";
+          } else if (route.name === "Clients") {
+            iconName = focused ? "people" : "people-outline";
+          } else if (route.name === "Settings") {
+            iconName = focused ? "settings" : "settings-outline";
+          }
+
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: "#e5e7eb",
           paddingBottom: 5,
           paddingTop: 5,
         },
-      }}
+      })}
     >
       <Tab.Screen
         name="Home"
@@ -44,21 +62,21 @@ function MainTabs() {
         name="Calendar"
         component={CalendarScreen}
         options={{
-          tabBarLabel: "Calendar",
+          tabBarLabel: "Calendario",
         }}
       />
       <Tab.Screen
         name="Clients"
         component={ClientsScreen}
         options={{
-          tabBarLabel: "Clients",
+          tabBarLabel: "Clientes",
         }}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
-          tabBarLabel: "Settings",
+          tabBarLabel: "Ajustes",
         }}
       />
     </Tab.Navigator>

@@ -1,4 +1,16 @@
-import React, { useState } from "react";
+/**
+ * AppointmentDetailScreen.js
+ * 
+ * Displays detailed information about a selected appointment.
+ * Features:
+ * - Displays client name, date, time, and dynamic duration badges.
+ * - Mark as Completed: Updates database state to true and returns to the filtered calendar.
+ * - Reschedule: Inline date-time picker to modify appointment timings.
+ * - SMS Reminder: Triggers text reminders via the global appointments context.
+ * - Delete: Triggers deletion with a confirmation alert prompt.
+ */
+
+import React, { useState, useLayoutEffect } from "react";
 import {
   View,
   Text,
@@ -7,40 +19,55 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  Button,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAppointments } from "../context/AppointmentsContext";
 import { formatDate, formatTime } from "./helpers/timeFormat";
-import { useLanguage } from "../context/LanguageContext";
-import { getT } from "../i18n/translations";
-import { useLayoutEffect } from "react";
 
 export default function AppointmentDetailScreen({ route, navigation }) {
   const { event: serializedEvent } = route.params;
-  const { language } = useLanguage();
-  const t = (key) => getT(key, language);
 
-  // Local state for rescheduling
   const [showPicker, setShowPicker] = useState(false);
   const [newTime, setNewTime] = useState(new Date(serializedEvent.start));
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isSendingReminder, setIsSendingReminder] = useState(false);
 
-  const { deleteAppointment, sendReminder, updateAppointment } =
+  // Grab matching real-time database cache records directly out of context using the ID
+  const { appointments, deleteAppointment, sendReminder, updateAppointment } =
     useAppointments();
+
+  // Look up the live instance of this exact appointment from global context state
+  const dbAppointment = appointments.find((apt) => String(apt.id) === String(serializedEvent.id));
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: t("appointmentDetails"),
+      title: "Detalles de la Cita",
     });
-  }, [navigation, language]);
+  }, [navigation]);
 
   const event = {
     ...serializedEvent,
+    ...dbAppointment, // Merges up-to-date data properties like 'duration' and 'completed' dynamically
     start: new Date(serializedEvent.start),
+  };
+
+  // Extract duration accurately falling back safely to a 2 hour default structure
+  const displayDuration = event.duration ? Number(event.duration) : 2;
+
+  // Handles marking the appointment complete in the database and drops back to the calendar
+  const handleMarkComplete = async () => {
+    setIsUpdating(true);
+    try {
+      await updateAppointment(event.id, {
+        completed: true, // Passes the new boolean flag to your database handler
+      });
+      Alert.alert("Éxito", "¡Cita completada!");
+      navigation.goBack(); // Navigates back, where the calendar filters will now hide it
+    } catch (error) {
+      Alert.alert("Error", "No se pudo completar la cita.");
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleReschedule = async () => {
@@ -48,27 +75,26 @@ export default function AppointmentDetailScreen({ route, navigation }) {
     try {
       await updateAppointment(event.id, {
         start: newTime,
-
         appointment_at: newTime.toISOString(),
+        duration: displayDuration, // Preserves your database column record mapping integrity
       });
-      Alert.alert("Success", "Appointment rescheduled!");
+      Alert.alert("Éxito", "¡Cita reprogramada con éxito!");
       setShowPicker(false);
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", "Could not update appointment.");
+      Alert.alert("Error", "No se pudo actualizar la cita.");
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert("Delete", `Delete appointment for ${event.client}?`, [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Eliminar", `¿Eliminar la cita de ${event.client}?`, [
+      { text: "Cancelar", style: "cancel" },
       {
-        text: "Delete",
+        text: "Eliminar",
         style: "destructive",
         onPress: async () => {
-          setIsDeleting(true);
           await deleteAppointment(event.id);
           navigation.goBack();
         },
@@ -87,7 +113,7 @@ export default function AppointmentDetailScreen({ route, navigation }) {
 
           <View style={styles.dateTimeContainer}>
             <Text style={styles.info}>
-              {formatDate(event.start, language, {
+              {formatDate(event.start, "spanish", {
                 weekday: "long",
                 month: "long",
                 day: "numeric",
@@ -95,27 +121,41 @@ export default function AppointmentDetailScreen({ route, navigation }) {
             </Text>
 
             <Text style={styles.info}>
-              {formatTime(event.start, language, {
+              {formatTime(event.start, "spanish", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: true,
               })}
             </Text>
+
+            {/* DURATION DISPLAY CHIP */}
+            <View style={styles.durationBadge}>
+              <Text style={styles.durationBadgeText}>
+                Duración: {displayDuration}{" "}
+                {displayDuration === 1 ? "Hora" : "Horas"}
+              </Text>
+            </View>
           </View>
 
-          {/* RESCHEDULE SECTION */}
+          {/* MARK AS COMPLETED ACTION BUTTON */}
+          <TouchableOpacity
+            style={[styles.completeButton, isUpdating && styles.disabled]}
+            onPress={handleMarkComplete}
+            disabled={isUpdating}
+          >
+            <Text style={styles.completeButtonText}>✓ Marcar como Completada</Text>
+          </TouchableOpacity>
+
           {!showPicker ? (
             <TouchableOpacity
               style={styles.rescheduleButton}
               onPress={() => setShowPicker(true)}
             >
-              <Text style={styles.rescheduleButtonText}>
-                {t("rescheduleAppointment")}
-              </Text>
+              <Text style={styles.rescheduleButtonText}>Reprogramar Cita</Text>
             </TouchableOpacity>
           ) : (
             <View style={styles.pickerWrapper}>
-              <Text style={styles.pickerLabel}>{t("time")}</Text>
+              <Text style={styles.pickerLabel}>Hora</Text>
               <DateTimePicker
                 value={newTime}
                 mode="datetime"
@@ -131,11 +171,11 @@ export default function AppointmentDetailScreen({ route, navigation }) {
                   disabled={isUpdating}
                 >
                   <Text style={styles.confirmBtnText}>
-                    {isUpdating ? "Saving..." : "Confirm Changes"}
+                    {isUpdating ? "Guardando..." : "Confirmar Cambios"}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setShowPicker(false)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
+                  <Text style={styles.cancelText}>Cancelar</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -143,7 +183,6 @@ export default function AppointmentDetailScreen({ route, navigation }) {
 
           <View style={styles.divider} />
 
-          {/* REMINDER & DELETE BUTTONS */}
           <TouchableOpacity
             style={[
               styles.reminderButton,
@@ -152,12 +191,14 @@ export default function AppointmentDetailScreen({ route, navigation }) {
             onPress={() => !event.reminder_sent && sendReminder(event.id)}
           >
             <Text style={styles.reminderButtonText}>
-              {event.reminder_sent ? "Reminder Sent ✓" : "Send SMS Reminder"}
+              {event.reminder_sent
+                ? "Recordatorio Enviado ✓"
+                : "Enviar Recordatorio SMS"}
             </Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Text style={styles.deleteButtonText}>Delete Appointment</Text>
+            <Text style={styles.deleteButtonText}>Eliminar Cita</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -186,7 +227,38 @@ const styles = StyleSheet.create({
   },
   dateTimeContainer: { marginBottom: 20 },
   info: { fontSize: 18, color: "#64748b", marginBottom: 4 },
-
+  durationBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  durationBadgeText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  completeButton: {
+    backgroundColor: "#10b981",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginBottom: 12,
+    shadowColor: "#10b981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  completeButtonText: { 
+    color: "#fff", 
+    fontWeight: "700", 
+    fontSize: 16 
+  },
   rescheduleButton: {
     backgroundColor: "#eff6ff",
     padding: 16,
@@ -196,7 +268,6 @@ const styles = StyleSheet.create({
     borderColor: "#bfdbfe",
   },
   rescheduleButtonText: { color: "#2563eb", fontWeight: "600", fontSize: 16 },
-
   pickerWrapper: {
     backgroundColor: "#f8fafc",
     padding: 15,
@@ -222,7 +293,6 @@ const styles = StyleSheet.create({
   },
   confirmBtnText: { color: "#fff", fontWeight: "700" },
   cancelText: { color: "#ef4444", fontWeight: "600" },
-
   divider: { height: 1, backgroundColor: "#e2e8f0", marginVertical: 25 },
   reminderButton: {
     backgroundColor: "#6366f1",
