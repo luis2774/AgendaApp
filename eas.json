@@ -10,6 +10,7 @@
     },
     "sideload": {
       "distribution": "internal",
+      "withoutCredentials": true,
       "ios": {
         "simulator": true
       }
