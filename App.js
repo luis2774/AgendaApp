@@ -44,9 +44,10 @@ function MainTabs() {
         },
 
         tabBarStyle: {
+          height: 80, 
+          paddingBottom: 25, 
           borderTopWidth: 1,
           borderTopColor: "#e5e7eb",
-          paddingBottom: 5,
           paddingTop: 5,
         },
       })}
