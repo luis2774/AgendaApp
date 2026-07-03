@@ -288,6 +288,16 @@ export const AppointmentsProvider = ({ children }) => {
       console.error("Supabase Sync Failed:", err);
     }
   };
+  const confirmAppointment = async (appointmentId) => {
+    try {
+      // We reuse your existing updateAppointment logic
+      await updateAppointment(appointmentId, { confirmed: true });
+      return { success: true };
+    } catch (err) {
+      console.error("Error confirming appointment:", err);
+      return { success: false, error: err.message };
+    }
+  };
 
   // Send SMS reminder for an appointment
   const sendReminder = async (appointmentId) => {
@@ -310,6 +320,7 @@ export const AppointmentsProvider = ({ children }) => {
       updateAppointment,
       sendReminder,
       loading,
+      confirmAppointment,
       error,
       supabaseEnabled,
       refreshAppointments: loadAppointments,

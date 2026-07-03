@@ -16,7 +16,7 @@ import { getAvailableSlots } from "./helpers/slotFinder";
 import * as Haptics from "expo-haptics";
 
 export default function HomeScreen({ navigation }) {
-  const { appointments } = useAppointments();
+  const { appointments, confirmAppointment } = useAppointments();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -61,6 +61,19 @@ export default function HomeScreen({ navigation }) {
     );
     const upcomingApts = activeAppointments.filter((a) => a.start > now);
     const confirmedCount = activeAppointments.filter((a) => a.confirmed).length;
+
+    const handleConfirm = async (appointmentId) => {
+      try {
+        const result = await confirmAppointment(appointmentId);
+        if (result.success) {
+          Alert.alert("Éxito", "Cita confirmada.");
+        } else {
+          Alert.alert("Error", "No se pudo confirmar.");
+        }
+      } catch (error) {
+        Alert.alert("Error", "Ocurrió un problema.");
+      }
+    };
 
     return {
       totalAvailable: openSlots.length,
@@ -150,6 +163,7 @@ export default function HomeScreen({ navigation }) {
           {sortedAppointments.length > 0 ? (
             sortedAppointments.map((item, index) => (
               <View key={item.id} style={styles.timelineItem}>
+                {/* Timeline Line */}
                 <View style={styles.timelineLine}>
                   <View
                     style={[
@@ -161,34 +175,54 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.verticalLine} />
                   )}
                 </View>
-                <TouchableOpacity
+
+                {/* Appointment Card */}
+                <View
                   style={[
                     styles.appointmentCard,
                     item.start < new Date() && styles.cardPast,
                   ]}
-                  onPress={() =>
-                    navigation.navigate("Calendar", {
-                      highlightDate: item.start.toISOString(),
-                    })
-                  }
                 >
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.clientName}>{item.client}</Text>
-                    <Text style={styles.timeText}>
-                      {formatTime(item.start, 'spanish')}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      item.confirmed ? styles.badgeOk : styles.badgeWait,
-                    ]}
+                  {/* Left Side: Info (Clickable for Navigation) */}
+                  <TouchableOpacity
+                    style={styles.cardInfoContainer}
+                    onPress={() =>
+                      navigation.navigate("Calendar", {
+                        highlightDate: item.start.toISOString(),
+                      })
+                    }
                   >
-                    <Text style={styles.badgeText}>
-                      {item.confirmed ? "✓" : "?"}
-                    </Text>
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.clientName}>{item.client}</Text>
+                      <Text style={styles.timeText}>
+                        {formatTime(item.start, "spanish")}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Right Side: Confirm Button + Status Badge */}
+                  <View style={styles.cardActions}>
+                    {!item.confirmed && (
+                      <TouchableOpacity
+                        style={styles.confirmButton}
+                        onPress={() => confirmAppointment(item.id)}
+                      >
+                        <Text style={styles.confirmButtonText}>Confirmar</Text>
+                      </TouchableOpacity>
+                    )}
+
+                    <View
+                      style={[
+                        styles.statusBadge,
+                        item.confirmed ? styles.badgeOk : styles.badgeWait,
+                      ]}
+                    >
+                      <Text style={styles.badgeText}>
+                        {item.confirmed ? "✓" : "?"}
+                      </Text>
+                    </View>
                   </View>
-                </TouchableOpacity>
+                </View>
               </View>
             ))
           ) : (
@@ -419,5 +453,27 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     marginTop: 10,
+  },
+
+  cardActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginLeft: 10,
+  },
+  cardInfoContainer: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  confirmButton: {
+    backgroundColor: "#34c759",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  confirmButtonText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
 });

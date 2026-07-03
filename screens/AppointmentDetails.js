@@ -33,7 +33,7 @@ export default function AppointmentDetailScreen({ route, navigation }) {
   const [isUpdating, setIsUpdating] = useState(false);
 
   // Grab matching real-time database cache records directly out of context using the ID
-  const { appointments, deleteAppointment, sendReminder, updateAppointment } =
+  const { appointments, deleteAppointment, sendReminder, updateAppointment, confirmAppoinment } =
     useAppointments();
 
   // Look up the live instance of this exact appointment from global context state
@@ -99,6 +99,14 @@ export default function AppointmentDetailScreen({ route, navigation }) {
       setIsUpdating(false);
     }
   };
+  const handleConfirm = async (appointmentId) => {
+  const result = await confirmAppointment(appointmentId);
+  if (result.success) {
+    Alert.alert("Éxito", "Cita confirmada");
+  } else {
+    Alert.alert("Error", "No se pudo confirmar la cita");
+  }
+};
 
   const handleDelete = () => {
     const performDelete = async () => {

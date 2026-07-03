@@ -158,30 +158,30 @@ export const ClientsProvider = ({ children }) => {
 
   // Delete a client
   const deleteClient = async (clientId) => {
-    // Optimistically remove from local state
     const clientToDelete = clients.find((c) => c.id === clientId);
+    
+    // 1. Remove from local state
     setClients((prev) => prev.filter((client) => client.id !== clientId));
 
-    // If Supabase is enabled, delete from database
-    if (supabaseEnabled) {
-      try {
+    try {
+      // 2. Just delete the client. Supabase will CASCADE delete the appointments.
+      if (supabaseEnabled) {
         const { error: supabaseError } = await supabase
           .from('clients')
           .delete()
           .eq('id', clientId);
 
-        if (supabaseError) {
-          throw supabaseError;
-        }
-      } catch (err) {
-        console.error('Error deleting client from Supabase:', err);
-        setError(err.message || 'Failed to delete client');
-        // Restore client on error
-        if (clientToDelete) {
-          setClients((prev) => [...prev, clientToDelete]);
-        }
-        throw err;
+        if (supabaseError) throw supabaseError;
       }
+    } catch (err) {
+      console.error('Error deleting client:', err);
+      setError(err.message || 'Failed to delete client');
+      
+      // Rollback on error
+      if (clientToDelete) {
+        setClients((prev) => [...prev, clientToDelete]);
+      }
+      throw err;
     }
   };
 

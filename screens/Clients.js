@@ -13,7 +13,7 @@
  */
 
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Button, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Button, Alert,Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClients } from "../context/ClientsContext";
 import { useAppointments } from "../context/AppointmentsContext";
@@ -127,39 +127,33 @@ export default function ClientsScreen() {
    * - Shows success/error alerts
    * @param {object} client - The client object to delete
    */
-  const handleDelete = (client) => {
-    // Safety check: Don't allow deletion if client has appointments
-    const appointmentCount = getClientAppointmentCount(client.id);
-    if (appointmentCount > 0) {
-      Alert.alert(
-        "Cannot Delete",
-        `This client has ${appointmentCount} appointment(s). Please delete or reassign appointments first.`
-      );
-      return;
-    }
+ const handleDelete = (client) => {
+  console.log("Delete button clicked for client:", client.name); // <--- DEBUG LINE
 
-    // Confirmation dialog before deletion
-    Alert.alert(
-      "Borrar Cliente",
-      `Estas seguro que quieres borrar ${client.name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteClient(client.id);
-              Alert.alert("Exito", "Cliente eliminado exitosamente.");
-            } catch (error) {
-              Alert.alert("Error", error.message || "Error en borrar cliente.");
-            }
-          },
-        },
-      ]
-    );
+  const performDelete = async () => {
+    try {
+      await deleteClient(client.id);
+      console.log("Delete successful");
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
   };
 
+  if (Platform.OS === 'web') {
+    if (window.confirm(`¿Borrar a ${client.name}?`)) {
+      performDelete();
+    }
+  } else {
+    Alert.alert(
+      "Borrar Cliente",
+      `¿Estás seguro de que quieres borrar a ${client.name}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Borrar", style: "destructive", onPress: performDelete },
+      ]
+    );
+  }
+};
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
