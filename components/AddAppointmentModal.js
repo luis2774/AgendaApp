@@ -129,7 +129,7 @@ export default function AddAppointmentModal({
                       style={[
                         styles.clientOption,
                         selectedClientId === item.id &&
-                          styles.clientOptionSelected,
+                        styles.clientOptionSelected,
                       ]}
                       onPress={() => {
                         setSelectedClientId(item.id);
@@ -140,7 +140,7 @@ export default function AddAppointmentModal({
                         style={[
                           styles.clientOptionText,
                           selectedClientId === item.id &&
-                            styles.clientOptionTextSelected,
+                          styles.clientOptionTextSelected,
                         ]}
                       >
                         {item.name}
@@ -185,18 +185,33 @@ export default function AddAppointmentModal({
           <View style={styles.timePickerContainer}>
             <Text style={styles.label}>Hora</Text>
             <View style={styles.pickerWrapper}>
-              <DateTimePicker
-                value={startTime}
-                mode="time"
-                is24Hour={false}
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selectedTime) => {
-                  if (selectedTime) {
-                    setStartTime(selectedTime);
-                  }
-                }}
-                style={styles.picker}
-              />
+              {Platform.OS === 'web' ? (
+                <input
+                  type="time"
+                  value={`${startTime.getHours().toString().padStart(2, '0')}:${startTime.getMinutes().toString().padStart(2, '0')}`}
+                  onChange={(e) => {
+                    const [hours, minutes] = e.target.value.split(':');
+                    const newDate = new Date(startTime);
+                    newDate.setHours(parseInt(hours));
+                    newDate.setMinutes(parseInt(minutes));
+                    setStartTime(newDate);
+                  }}
+                  style={styles.webTimeInput}
+                />
+              ) : (
+                <DateTimePicker
+                  value={startTime}
+                  mode="time"
+                  is24Hour={false}
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  onChange={(event, selectedTime) => {
+                    if (selectedTime) {
+                      setStartTime(selectedTime);
+                    }
+                  }}
+                  style={styles.picker}
+                />
+              )}
             </View>
           </View>
 
@@ -307,12 +322,21 @@ const styles = StyleSheet.create({
   pickerWrapper: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgb(255, 255, 255)",
     borderRadius: 8,
     padding: 8,
     ...(Platform.OS === "ios" && {
       height: 200,
     }),
+  },
+  webTimeInput: {
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    borderRadius: 8,
+    width: '100%',
+    backgroundColor: '#fff',
   },
   picker: {
     width: Platform.OS === "ios" ? "100%" : "auto",

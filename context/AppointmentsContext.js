@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
+import { Alert, Platform } from "react-native";
 import { appointments as initialAppointments } from "../data/appointments";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
 
@@ -105,10 +106,9 @@ export const AppointmentsProvider = ({ children }) => {
 
   // Delete appointment from Supabase (and local state)
   const deleteAppointment = async (appointmentId) => {
-    // 1. Keep a backup for "Undo" if the DB call fails
+    //console.log("Attempting to delete appointment ID:", appointmentId);
     const previousAppointments = [...appointments];
 
-    // 2. Optimistic Update: Remove it from UI immediately
     setAppointments((prev) => prev.filter((apt) => apt.id !== appointmentId));
 
     try {
@@ -120,12 +120,16 @@ export const AppointmentsProvider = ({ children }) => {
 
         if (supabaseError) throw supabaseError;
       }
-      // If we get here, it's gone! No need to reload everything.
     } catch (err) {
-      // 3. Revert: If the database says "No," put the data back
       setAppointments(previousAppointments);
       setError(err.message || "Failed to delete");
-      console.error("Deletion failed, state reverted.");
+
+      // ADD THE PLATFORM CHECK HERE TOO
+      if (Platform.OS !== 'web') {
+        Alert.alert("Sync Error", "Could not delete appointment.");
+      } else {
+        console.error("Web Deletion Error:", err);
+      }
     }
   };
 
@@ -272,9 +276,15 @@ export const AppointmentsProvider = ({ children }) => {
         console.log("✅ Supabase updated successfully");
       }
     } catch (err) {
-      // 3. Revert on failure
       setAppointments(previousAppointments);
-      Alert.alert("Sync Error", "Could not save to cloud. Reverting changes.");
+
+      // Add this check
+      if (Platform.OS !== 'web') {
+        Alert.alert("Sync Error", "Could not save to cloud. Reverting changes.");
+      } else {
+        console.log("Web Error (alert skipped):", err);
+      }
+
       console.error("Supabase Sync Failed:", err);
     }
   };

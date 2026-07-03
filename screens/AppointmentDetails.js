@@ -76,30 +76,48 @@ export default function AppointmentDetailScreen({ route, navigation }) {
       await updateAppointment(event.id, {
         start: newTime,
         appointment_at: newTime.toISOString(),
-        duration: displayDuration, // Preserves your database column record mapping integrity
+        duration: displayDuration,
       });
-      Alert.alert("Éxito", "¡Cita reprogramada con éxito!");
+
+      // Platform-aware success feedback
+      if (Platform.OS === 'web') {
+        window.alert("¡Cita reprogramada con éxito!");
+      } else {
+        Alert.alert("Éxito", "¡Cita reprogramada con éxito!");
+      }
+
       setShowPicker(false);
       navigation.goBack();
     } catch (error) {
-      Alert.alert("Error", "No se pudo actualizar la cita.");
+      // Platform-aware error feedback
+      if (Platform.OS === 'web') {
+        window.alert("Error: No se pudo actualizar la cita.");
+      } else {
+        Alert.alert("Error", "No se pudo actualizar la cita.");
+      }
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert("Eliminar", `¿Eliminar la cita de ${event.client}?`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Eliminar",
-        style: "destructive",
-        onPress: async () => {
-          await deleteAppointment(event.id);
-          navigation.goBack();
-        },
-      },
-    ]);
+    const performDelete = async () => {
+      await deleteAppointment(event.id);
+      navigation.goBack();
+    };
+
+    if (Platform.OS === 'web') {
+      // For Web: Use the browser's native confirm dialog
+      if (window.confirm(`¿Eliminar la cita de ${event.client}?`)) {
+        performDelete();
+      }
+    } else {
+      // For Mobile: Use the existing Alert
+      Alert.alert("Eliminar", `¿Eliminar la cita de ${event.client}?`, [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Eliminar", style: "destructive", onPress: performDelete },
+      ]);
+    }
   };
 
   return (
@@ -156,14 +174,33 @@ export default function AppointmentDetailScreen({ route, navigation }) {
           ) : (
             <View style={styles.pickerWrapper}>
               <Text style={styles.pickerLabel}>Hora</Text>
-              <DateTimePicker
-                value={newTime}
-                mode="datetime"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                textColor="#000000"
-                onChange={(e, date) => date && setNewTime(date)}
-                style={styles.picker}
-              />
+
+              {Platform.OS === 'web' ? (
+                <input
+                  type="datetime-local"
+                  value={`${newTime.getFullYear()}-${(newTime.getMonth() + 1).toString().padStart(2, '0')}-${newTime.getDate().toString().padStart(2, '0')}T${newTime.getHours().toString().padStart(2, '0')}:${newTime.getMinutes().toString().padStart(2, '0')}`}
+                  onChange={(e) => {
+                    // This parses the YYYY-MM-DDTHH:mm string correctly without UTC shifts
+                    const [datePart, timePart] = e.target.value.split('T');
+                    const [year, month, day] = datePart.split('-').map(Number);
+                    const [hours, minutes] = timePart.split(':').map(Number);
+
+                    const newDate = new Date(year, month - 1, day, hours, minutes);
+                    setNewTime(newDate);
+                  }}
+                  style={styles.webTimeInput}
+                />
+              ) : (
+                <DateTimePicker
+                  value={newTime}
+                  mode="datetime"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  textColor="#000000"
+                  onChange={(e, date) => date && setNewTime(date)}
+                  style={styles.picker}
+                />
+              )}
+
               <View style={styles.pickerActions}>
                 <TouchableOpacity
                   style={styles.confirmBtn}
@@ -254,10 +291,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  completeButtonText: { 
-    color: "#fff", 
-    fontWeight: "700", 
-    fontSize: 16 
+  completeButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16
   },
   rescheduleButton: {
     backgroundColor: "#eff6ff",
@@ -290,6 +327,15 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
     marginBottom: 10,
+  },
+  webTimeInput: {
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#ffffff',
+    borderRadius: 8,
+    width: '100%',
+    backgroundColor: '#fff',
   },
   confirmBtnText: { color: "#fff", fontWeight: "700" },
   cancelText: { color: "#ef4444", fontWeight: "600" },
