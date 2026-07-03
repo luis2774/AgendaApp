@@ -28,7 +28,12 @@
       "edgeToEdgeEnabled": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "name": "Cleaning Agenda",
+      "short_name": "Cleaning",
+      "backgroundColor": "#ffffff",
+      "themeColor": "#ffffff",
+      "display": "standalone",
+      "icon": "./assets/Logo.png"
     },
     "extra": {
       "eas": {
