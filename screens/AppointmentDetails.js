@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   picker: { height: 150 },
   pickerActions: { marginTop: 10, alignItems: "center" },
   confirmBtn: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#6366f1",
     padding: 12,
     borderRadius: 10,
     width: "100%",

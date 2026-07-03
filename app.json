@@ -33,7 +33,8 @@
       "backgroundColor": "#ffffff",
       "themeColor": "#ffffff",
       "display": "standalone",
-      "icon": "./assets/Logo.png"
+      "icon": "./assets/Logo.jpg",
+      "appleMobileWebAppCapable": "yes"
     },
     "extra": {
       "eas": {

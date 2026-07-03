@@ -14,6 +14,7 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useAppointments } from "../context/AppointmentsContext";
 import { useClients } from "../context/ClientsContext";
+import { appointments } from "../data/appointments";
 
 export default function AddAppointmentModal({
   visible,
@@ -159,7 +160,7 @@ export default function AddAppointmentModal({
             </View>
           )}
           <View style={styles.durationSection}>
-            <Text style={styles.label}>Duración (Horas)</Text>
+            <Text style={styles.label}> {appointments.duration}Duración (Horas)</Text>
             <View style={styles.stepperContainer}>
               <TouchableOpacity
                 style={styles.stepButton}

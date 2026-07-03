@@ -36,9 +36,9 @@ const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 const BUSINESS_CONFIG = {
   startHour: 8, // 8:00 AM
-  endHour: 17, // 5:00 PM
-  slotDuration: 150, // 2 30 minutes hour slots
-  daysToShow: 6, // Window size for finder look-ahead
+  endHour: 19, // 5:00 PM
+  slotDuration: 120, // 2 30 minutes hour slots
+  daysToShow: 20, // Window size for finder look-ahead
 };
 
 export default function CalendarScreen({ navigation, route }) {
@@ -253,7 +253,7 @@ export default function CalendarScreen({ navigation, route }) {
           <Calendar
             locale={calendarLocale}
             events={appointments.map((a) => {
-              const itemDuration = a.duration ? Number(a.duration) : 2;
+              const itemDuration = Number(a.duration) || 2;
               return {
                 ...a,
                 title: a.client,
