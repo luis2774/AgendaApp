@@ -190,7 +190,7 @@ export default function AddAppointmentModal({
                 mode="time"
                 is24Hour={false}
                 display={Platform.OS === "ios" ? "spinner" : "default"}
-                onChange={(event, selectedTime) => {
+                onValueChange={(event, selectedTime) => {
                   if (selectedTime) {
                     setStartTime(selectedTime);
                   }
